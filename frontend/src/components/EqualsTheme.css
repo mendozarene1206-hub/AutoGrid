@@ -1,0 +1,252 @@
+/* EqualsTheme.css - Minimalist UI for FortuneSheet */
+
+:root {
+    --fs-border-subtle: #E5E7EB;
+    --fs-text-primary: #1f2937;
+    --fs-text-secondary: #6B7280;
+    --fs-accent-primary: #4F46E5;
+    --fs-accent-light: #EEF2FF;
+}
+
+/* Global Reset for FortuneSheet Container */
+.fortune-container {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    background-color: #ffffff !important;
+    color: #1f2937 !important;
+    /* Dark gray text for readability */
+}
+
+/* 1. Grid Lines & Background */
+.fortune-sheet-area {
+    background: #ffffff !important;
+}
+
+/* Grid lines - make them visible */
+.fortune-sheet-area canvas {
+    /* Canvas grid lines are drawn programmatically */
+}
+
+/* Cell text color - CRITICAL FIX */
+.fortune-cell-area,
+.fortune-sheet-container,
+.luckysheet-cell-main,
+.fortune-cell,
+.fortune-sheet-area table td,
+.fortune-sheet-area table th {
+    color: #1f2937 !important;
+}
+
+/* Canvas text (for FortuneSheet canvas rendering) */
+canvas {
+    /* Canvas text is drawn programmatically, but we ensure container is visible */
+}
+
+/* 2. Selection / Focus Ring */
+.fortune-selection-copy-top,
+.fortune-selection-copy-bottom,
+.fortune-selection-copy-left,
+.fortune-selection-copy-right,
+.fortune-selection-choose-top,
+.fortune-selection-choose-bottom,
+.fortune-selection-choose-left,
+.fortune-selection-choose-right {
+    background-color: #4F46E5 !important;
+    height: 2px !important;
+    width: 2px !important;
+    opacity: 1 !important;
+}
+
+.fortune-selection-choose {
+    border: 2px solid #4F46E5 !important;
+}
+
+/* 3. Headers (Column & Row) - FIXED TEXT COLOR */
+.fortune-col-header,
+.fortune-row-header,
+.fortune-col-header-item,
+.fortune-row-header-item,
+.fortune-sheet-header {
+    background: #f9fafb !important;
+    color: #374151 !important;
+    /* Darker gray for visibility */
+    font-weight: 500 !important;
+    border: 1px solid #E5E7EB !important;
+    transition: background 0.2s ease;
+}
+
+.fortune-col-header:hover,
+.fortune-row-header:hover {
+    background: #F3F4F6 !important;
+}
+
+.fortune-col-header-selected,
+.fortune-row-header-selected {
+    background: #EEF2FF !important;
+    color: #4F46E5 !important;
+}
+
+/* --- MODERN TOOLBAR REFACTOR --- */
+
+/* 1. Contenedor Principal: Más alto y aireado */
+.fortune-toolbar {
+    background: rgba(255, 255, 255, 0.95) !important; /* Ligeramente translúcido tipo vidrio (opcional) */
+    border-bottom: 1px solid var(--fs-border-subtle) !important;
+    padding: 6px 12px !important; /* Más espacio vertical */
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important; /* Espacio entre elementos */
+    height: 48px !important; /* Forzamos una altura fija para consistencia */
+}
+
+/* 2. Botones de la Toolbar (Estilo Ghost) */
+.fortune-toolbar-button {
+    margin: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    border-radius: 6px !important; /* Bordes más redondeados tipo Linear */
+    cursor: pointer !important;
+    height: 32px !important;
+    width: 32px !important; /* Cuadrados perfectos */
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    color: var(--fs-text-secondary) !important;
+}
+
+/* Hover suave */
+.fortune-toolbar-button:hover {
+    background-color: var(--fs-border-subtle) !important;
+    color: var(--fs-text-primary) !important;
+    transform: translateY(-1px); /* Micro-interacción: se eleva 1px */
+}
+
+/* Estado Activo (Cuando Negrita/Cursiva está ON) */
+.fortune-toolbar-button-active,
+.fortune-toolbar-button.active {
+    background-color: var(--fs-accent-light) !important;
+    color: var(--fs-accent-primary) !important;
+}
+
+/* Iconos SVG dentro de los botones */
+.fortune-toolbar-button svg {
+    width: 16px !important;
+    height: 16px !important;
+    stroke-width: 2px; /* Forzamos iconos un poco más gruesos si son SVG de línea */
+}
+
+/* --- 3. Separadores (Dividers) --- */
+/* FortuneSheet usa divs vacíos o clases específicas para separadores. 
+   Vamos a estilizarlos para que sean líneas finas */
+.fortune-toolbar-divider {
+    width: 1px !important;
+    height: 20px !important;
+    background-color: var(--fs-border-subtle) !important;
+    margin: 0 8px !important; /* Aire a los lados del separador */
+}
+
+/* --- 4. Dropdowns (Selectores de Fuente/Tamaño) --- */
+.fortune-toolbar-combo,
+.fortune-toolbar-select {
+    border: 1px solid transparent !important; /* Sin borde por defecto */
+    background: transparent !important;
+    border-radius: 6px !important;
+    height: 32px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: var(--fs-text-primary) !important;
+    transition: background 0.2s ease !important;
+}
+
+.fortune-toolbar-combo:hover,
+.fortune-toolbar-select:hover {
+    background: var(--fs-border-subtle) !important;
+}
+
+/* Flechitas de los dropdowns */
+.fortune-toolbar-combo-arrow {
+    color: var(--fs-text-secondary) !important;
+    font-size: 10px !important;
+}
+
+/* --- 5. Tooltips (Esencial para UX) --- */
+/* Si la librería genera tooltips, dales estilo "Dark Mode" para contraste */
+.fortune-tooltip {
+    background-color: #1f2937 !important;
+    color: white !important;
+    border-radius: 4px !important;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+}
+
+/* 5. Formula Bar - FIXED TEXT */
+.fortune-formula-bar {
+    background: #ffffff !important;
+    border-bottom: 1px solid #E5E7EB !important;
+    color: #1f2937 !important;
+}
+
+.fortune-formula-input,
+.fortune-formula-bar input,
+.fortune-formula-bar textarea {
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace !important;
+    font-size: 13px !important;
+    color: #1f2937 !important;
+    background: #ffffff !important;
+}
+
+/* Cell name box (A1, B2, etc.) */
+.fortune-name-box,
+.fortune-name-box input {
+    color: #374151 !important;
+    background: #ffffff !important;
+}
+
+/* 6. Tabs / Sheet Bar */
+.fortune-sheet-config-bar {
+    background: #f9fafb !important;
+    border-top: 1px solid #E5E7EB !important;
+    color: #374151 !important;
+}
+
+.fortune-sheet-tab-item {
+    border: none !important;
+    background: transparent !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #6B7280 !important;
+}
+
+.fortune-sheet-tab-item-active {
+    color: #4F46E5 !important;
+    border-bottom: 2px solid #4F46E5 !important;
+}
+
+/* 7. Context Menu & Dropdowns */
+.fortune-context-menu,
+.fortune-dropdown-menu {
+    background: #ffffff !important;
+    color: #1f2937 !important;
+    border: 1px solid #E5E7EB !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.fortune-context-menu-item,
+.fortune-dropdown-item {
+    color: #374151 !important;
+}
+
+.fortune-context-menu-item:hover,
+.fortune-dropdown-item:hover {
+    background: #F3F4F6 !important;
+}
+
+/* 8. Input cells during editing */
+.fortune-cell-input,
+.fortune-input-box,
+.luckysheet-input-box {
+    color: #1f2937 !important;
+    background: #ffffff !important;
+    border: 2px solid #4F46E5 !important;
+}

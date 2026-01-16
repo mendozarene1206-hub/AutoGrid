@@ -1,0 +1,51 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "@univerjs/presets": "^0.15.1",
+    "@univerjs/sheets-conditional-formatting": "^0.15.1",
+    "@univerjs/sheets-crosshair-highlight": "^0.15.1",
+    "@univerjs/sheets-data-validation": "^0.15.1",
+    "@univerjs/sheets-drawing": "^0.15.1",
+    "@univerjs/sheets-drawing-ui": "^0.15.1",
+    "@univerjs/sheets-filter": "^0.15.1",
+    "@univerjs/sheets-find-replace": "^0.15.1",
+    "@univerjs/sheets-hyper-link": "^0.15.1",
+    "@univerjs/sheets-numfmt": "^0.15.1",
+    "@univerjs/sheets-thread-comment": "^0.15.1",
+    "@univerjs/sheets-zen-editor": "^0.15.1",
+    "@univerjs/thread-comment": "^0.15.1",
+    "@univerjs/thread-comment-ui": "^0.15.1",
+    "exceljs": "^4.4.0",
+    "html2pdf.js": "^0.13.0",
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "rxjs": "^7.8.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^5.1.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "^7.2.4"
+  }
+}
