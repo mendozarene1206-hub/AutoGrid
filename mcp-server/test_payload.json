@@ -1,0 +1,8 @@
+{
+  "sheetContext": {
+    "rows": [
+      { "id": 1, "concept": "Muro de Block", "largo": 10, "alto": 5, "total_claimed": 45 }
+    ]
+  },
+  "userMessage": "Calcula el área real (largo * alto) y dime si el total cobrado (45) es correcto."
+}

@@ -168,6 +168,57 @@ export const UniverGrid: React.FC<UniverGridProps> = ({
         };
     }, [data, cleanupUniver]); // Removed isDarkMode dependency to avoid full re-init
 
+    // NEW: Handle readOnly mode by applying worksheet protection
+    useEffect(() => {
+        if (!univerAPIRef.current || !isReady) return;
+
+        const applyReadOnlyMode = () => {
+            try {
+                const workbook = univerAPIRef.current.getActiveWorkbook();
+                if (!workbook) return;
+
+                const sheets = workbook.getSheets();
+                if (!sheets || !Array.isArray(sheets)) return;
+
+                sheets.forEach((sheet: any, index: number) => {
+                    const sheetName = sheet?.getName?.() || sheet?.name || `Sheet ${index + 1}`;
+                    if (readOnly) {
+                        // Block all cell edits, but comments plugin remains active
+                        console.log(`[UniverGrid] Applying READ-ONLY mode to sheet: ${sheetName}`);
+
+                        // Try to set sheet as protected (Univer >= 0.2.x)
+                        try {
+                            if (sheet?.setEditable) {
+                                sheet.setEditable(false);
+                            }
+                        } catch (e) {
+                            console.warn('[UniverGrid] setEditable not available:', e);
+                        }
+                    } else {
+                        // Enable editing
+                        console.log(`[UniverGrid] Enabling EDIT mode for sheet: ${sheetName}`);
+                        try {
+                            if (sheet?.setEditable) {
+                                sheet.setEditable(true);
+                            }
+                        } catch (e) {
+                            console.warn('[UniverGrid] setEditable not available:', e);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('[UniverGrid] Error applying readOnly mode:', error);
+            }
+        };
+
+        // Apply immediately
+        applyReadOnlyMode();
+
+        // Also log the current state
+        console.log(`[UniverGrid] ReadOnly mode: ${readOnly ? 'ENABLED' : 'DISABLED'}`);
+
+    }, [readOnly, isReady]);
+
     const handleThemeToggle = () => {
         const newMode = !isDarkMode;
         setIsDarkMode(newMode);

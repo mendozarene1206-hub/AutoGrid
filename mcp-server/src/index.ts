@@ -13,6 +13,7 @@ import crypto from "crypto";
 import dotenv from "dotenv";
 import stringify from "json-stable-stringify";
 import { z } from "zod";
+import { evaluate } from 'mathjs';
 import cors from "cors";
 import fs from "fs";
 import path from "path";
@@ -20,6 +21,7 @@ import { fileURLToPath } from 'url';
 import { google } from '@ai-sdk/google';
 import { generateText, tool } from 'ai';
 import pLimit from "p-limit";
+import workflowRoutes from "./routes/workflow.routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -206,6 +208,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     required: ["spreadsheet_id", "action"],
                 },
             },
+            {
+                name: "math_evaluate",
+                description: "Safely evaluate a mathematical expression to verify spreadsheet calculations. Use this for ALL arithmetic operations instead of calculating mentally.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        expression: { 
+                            type: "string", 
+                            description: "Math expression. Examples: '24.5 * 10 * 1.16', '100 - 5%', 'sum([1,2,3,4])'" 
+                        },
+                        context: {
+                            type: "string",
+                            description: "Brief context for logging (e.g., 'Verifying row 15 total')"
+                        }
+                    },
+                    required: ["expression"],
+                },
+            },
         ],
     };
 });
@@ -354,6 +374,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: `Status updated to ${newStatus}` }] };
     }
 
+    if (name === "math_evaluate") {
+        const { expression, context } = args as { expression: string; context?: string };
+        
+        try {
+            const result = evaluate(expression);
+            console.log(`[Math] ${context || 'Calculation'}: ${expression} = ${result}`);
+            
+            return {
+                content: [{
+                    type: "text",
+                    text: JSON.stringify({
+                        expression,
+                        result: typeof result === 'number' ? result : result.toString(),
+                        formatted: typeof result === 'number' 
+                            ? new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(result)
+                            : result.toString()
+                    })
+                }]
+            };
+        } catch (error: any) {
+            return {
+                content: [{
+                    type: "text",
+                    text: JSON.stringify({ error: `Invalid expression: ${error.message}` })
+                }]
+            };
+        }
+    }
+
     throw new Error(`Tool ${name} not found`);
 });
 
@@ -439,6 +488,30 @@ app.post("/api/audit", async (req, res) => {
                                 }
                                 return JSON.stringify(data);
                             }
+                        },
+                        math_evaluate: {
+                            description: 'Safely evaluate a mathematical expression. Use for ALL calculations.',
+                            parameters: z.object({
+                                expression: z.string().describe('Math expression (e.g., "24.5 * 10 * 1.16")'),
+                                context: z.string().optional().describe('Brief context for logging')
+                            }),
+                            execute: async ({ expression, context }: { expression: string; context?: string }) => {
+                                try {
+                                    // Basic sanitation
+                                    const sanitized = expression.replace(/=/g, ''); 
+                                    const result = evaluate(sanitized);
+                                    console.log(`[Gemini Math] ${context || 'Calc'}: ${expression} = ${result}`);
+                                    return JSON.stringify({
+                                        expression,
+                                        result,
+                                        formatted: typeof result === 'number' 
+                                            ? new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(result)
+                                            : result.toString()
+                                    });
+                                } catch (e: any) {
+                                    return JSON.stringify({ error: `Math error: ${e.message}` });
+                                }
+                            }
                         }
                     },
                     maxSteps: 5,
@@ -461,9 +534,13 @@ app.post("/api/audit", async (req, res) => {
     }
 });
 
+// Mount workflow routes
+app.use('/workflow', workflowRoutes);
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`AutoGrid MCP Server running on HTTP port ${PORT}`);
     console.log(`SSE Endpoint: http://localhost:${PORT}/sse`);
     console.log(`Audit API: http://localhost:${PORT}/api/audit`);
+    console.log(`Workflow API: http://localhost:${PORT}/workflow`);
 });

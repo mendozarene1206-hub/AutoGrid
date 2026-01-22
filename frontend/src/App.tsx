@@ -11,6 +11,7 @@ import { AuditLog } from './components/AuditLog';
 import { AuditButton } from './components/AuditButton';
 import { UploadProgress } from './components/UploadProgress';
 import { exportToPDF } from './utils/pdfExport';
+import { saveSnapshot, loadSnapshot, ensureStorageBucket } from './services/UniverPersistenceService';
 import './App.css';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
@@ -142,7 +143,7 @@ function App() {
           console.log('[Upload Progress]', phase, percent + '%');
           setUploadProgress({ phase, percent, visible: true });
         },
-        maxFileSizeMB: 50
+        maxFileSizeMB: 150
       });
 
       console.log('[Upload] Ingestion complete. Sheets:', Object.keys(result.workbook.sheets || {}).length);
@@ -154,20 +155,27 @@ function App() {
         console.warn('[Upload] Warnings:', result.warnings);
       }
 
-      setUploadProgress({ phase: '💾 Guardando en base de datos...', percent: 98, visible: true });
+      setUploadProgress({ phase: '💾 Comprimiendo y guardando...', percent: 85, visible: true });
 
-      // Store workbook data in raw_data (Univer IWorkbookData format)
-      const { error: updateError } = await supabase
-        .from('spreadsheets')
-        .update({ raw_data: result.workbook })
-        .eq('id', spreadsheet.id);
-
-      if (updateError) {
-        console.error('[Upload] Error saving to DB:', updateError);
-        throw updateError;
+      // NEW: Save to Supabase Storage with gzip compression
+      try {
+        const saveResult = await saveSnapshot(spreadsheet.id, result.workbook, (phase, percent) => {
+          // Map 0-100 to 85-98 range
+          const mappedPercent = 85 + (percent * 0.13);
+          setUploadProgress({ phase: `💾 ${phase}`, percent: Math.round(mappedPercent), visible: true });
+        });
+        console.log('[Upload] Saved to storage:', saveResult.storagePath);
+        console.log(`[Upload] Compression: ${(saveResult.originalSize / 1024 / 1024).toFixed(2)}MB → ${(saveResult.compressedSize / 1024 / 1024).toFixed(2)}MB (${saveResult.compressionRatio}% saved)`);
+      } catch (storageError: any) {
+        console.error('[Upload] Storage save failed, falling back to raw_data:', storageError);
+        // Fallback: save to raw_data if storage fails
+        const { error: updateError } = await supabase
+          .from('spreadsheets')
+          .update({ raw_data: result.workbook })
+          .eq('id', spreadsheet.id);
+        if (updateError) throw updateError;
       }
 
-      console.log('[Upload] Saved to database successfully');
       console.log('[Upload] Setting data state with workbook:', result.workbook.id);
 
       setData(result.workbook);
@@ -215,17 +223,42 @@ function App() {
   const openProject = async (id: string) => {
     setLoading(true);
     setSpreadsheetId(id);
-    const { data: spreadsheet } = await supabase
-      .from('spreadsheets')
-      .select('*')
-      .eq('id', id)
-      .single();
+    setUploadProgress({ phase: '📂 Cargando proyecto...', percent: 10, visible: true });
 
-    if (spreadsheet) {
-      setData(spreadsheet.raw_data);
-      setStatus(spreadsheet.status);
+    try {
+      // First get the status from the spreadsheet record
+      const { data: spreadsheet } = await supabase
+        .from('spreadsheets')
+        .select('status')
+        .eq('id', id)
+        .single();
+
+      if (spreadsheet) {
+        setStatus(spreadsheet.status);
+      }
+
+      // NEW: Load from Storage with fallback to raw_data
+      const result = await loadSnapshot(id, (phase, percent) => {
+        setUploadProgress({ phase: `📂 ${phase}`, percent, visible: true });
+      });
+
+      if (result.success && result.workbook) {
+        console.log(`[OpenProject] Loaded from ${result.source}:`, result.workbook.id);
+        setData(result.workbook);
+      } else if (result.source === 'empty') {
+        console.log('[OpenProject] Empty project, will create new workbook');
+        setData(null);
+      } else {
+        console.error('[OpenProject] Failed to load:', result.error);
+        alert(`Error cargando proyecto: ${result.error}`);
+      }
+    } catch (err: any) {
+      console.error('[OpenProject] Error:', err);
+      alert(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+      setUploadProgress({ phase: '', percent: 0, visible: false });
     }
-    setLoading(false);
   };
 
   const updateStatus = async (newStatus: string) => {

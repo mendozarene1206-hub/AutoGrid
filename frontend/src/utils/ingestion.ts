@@ -20,6 +20,8 @@ import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import type { IWorkbookData, IStyleData } from '@univerjs/core';
 import { LocaleType } from '@univerjs/presets';
+// Import the worker using Vite's syntax
+import IngestionWorker from './ingestion.worker?worker';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -45,7 +47,7 @@ export interface IngestionOptions {
 }
 
 /**
- * Función principal de ingestion.
+ * Función principal de ingestion (Optimized with Web Worker).
  */
 export async function ingestExcelFile(
     file: File,
@@ -55,7 +57,7 @@ export async function ingestExcelFile(
 ): Promise<IngestResult> {
     const {
         onProgress,
-        maxFileSizeMB = 50,
+        maxFileSizeMB = 150, // Allow up to 150MB raw files
         parallelImageUploads = 3
     } = options || {};
 
@@ -69,36 +71,51 @@ export async function ingestExcelFile(
         throw new Error(`El archivo (${fileSizeMB.toFixed(1)}MB) excede el límite de ${maxFileSizeMB}MB`);
     }
 
-    onProgress?.('📄 Leyendo archivo...', 5);
+    onProgress?.('📄 Cargando archivo en memoria...', 5);
 
-    // 2. Leer el archivo en memoria
+    // 2. Leer el archivo en memoria (Main thread)
     const buffer = await file.arrayBuffer();
-    onProgress?.('📄 Cargando Excel...', 15);
 
-    // 3. Parsear con ExcelJS
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
-    onProgress?.('🔄 Procesando hojas...', 25);
+    // 3. Delegar procesamiento al Web Worker
+    return new Promise((resolve, reject) => {
+        const worker = new IngestionWorker();
 
-    // 4. Convertir a formato Univer
-    const univerWorkbook = await convertExcelJSToUniver(
-        workbook,
-        userId,
-        spreadsheetId,
-        warnings,
-        parallelImageUploads,
-        onProgress
-    );
+        worker.onmessage = (event) => {
+            const { type, payload } = event.data;
 
-    onProgress?.('✅ Completado', 100);
+            if (type === 'PROGRESS') {
+                onProgress?.(payload.phase, payload.percent);
+            } else if (type === 'COMPLETE') {
+                console.log("[Ingestion] Worker completado con éxito");
+                worker.terminate();
+                resolve(payload);
+            } else if (type === 'ERROR') {
+                console.error("[Ingestion] Worker error:", payload.message);
+                worker.terminate();
+                reject(new Error(payload.message));
+            }
+        };
 
-    console.log("[Ingestion] Completado. Hojas:", Object.keys(univerWorkbook.workbook.sheets).length);
-    if (warnings.length > 0) {
-        console.warn("[Ingestion] Advertencias:", warnings);
-    }
+        worker.onerror = (error) => {
+            console.error("[Ingestion] Worker hard error:", error);
+            worker.terminate();
+            reject(error);
+        };
 
-    return univerWorkbook;
+        // Iniciar trabajo
+        worker.postMessage({
+            type: 'START',
+            payload: {
+                buffer,
+                fileName: file.name,
+                userId,
+                spreadsheetId,
+                parallelImageUploads
+            }
+        });
+    });
 }
+
 
 /**
  * Convierte un workbook de ExcelJS a formato Univer IWorkbookData.
@@ -202,7 +219,7 @@ async function convertExcelJSToUniver(
         });
 
         // Procesar anchos de columna con hidden flag
-        worksheet.columns.forEach((col, index) => {
+        worksheet.columns?.forEach((col, index) => {
             if (col.width || col.hidden) {
                 columnData[index] = {
                     w: (col.width || 10) * 7,
