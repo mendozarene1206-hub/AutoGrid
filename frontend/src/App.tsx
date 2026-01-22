@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { ingestExcelFile } from './utils/ingestion';
 import { UniverGrid } from './components/UniverGrid';
+import { ChunkedUniverGrid } from './components/ChunkedUniverGrid';
 import { Dashboard } from './components/Dashboard';
 import { Sidebar } from './components/Sidebar';
 import type { IWorkbookData } from '@univerjs/core';
@@ -12,6 +12,8 @@ import { AuditButton } from './components/AuditButton';
 import { UploadProgress } from './components/UploadProgress';
 import { exportToPDF } from './utils/pdfExport';
 import { saveSnapshot, loadSnapshot, ensureStorageBucket } from './services/UniverPersistenceService';
+// NEW: Streaming upload utilities (replaces ingestExcelFile for large files)
+import { getPresignedUrl, uploadToR2, notifyUploadComplete, waitForJobCompletion } from './utils/r2Client';
 import './App.css';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
@@ -49,6 +51,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 function App() {
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null);
   const [data, setData] = useState<IWorkbookData | null>(null);
+  const [manifestPath, setManifestPath] = useState<string | null>(null); // NEW: For chunked loading
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>("draft");
@@ -118,15 +121,16 @@ function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    console.log('[Upload] Starting upload for file:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+    console.log('[Upload] Starting STREAMING upload for file:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
 
     setLoading(true);
-    setUploadProgress({ phase: 'Iniciando...', percent: 0, visible: true });
+    setUploadProgress({ phase: '🚀 Iniciando carga directa a R2...', percent: 0, visible: true });
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
+      // Create spreadsheet record in Supabase
       const { data: spreadsheet, error: insertError } = await supabase
         .from('spreadsheets')
         .insert({ user_id: user.id })
@@ -137,57 +141,71 @@ function App() {
       setSpreadsheetId(spreadsheet.id);
       console.log('[Upload] Created spreadsheet:', spreadsheet.id);
 
-      // Ingest Excel with progress callbacks - increased limit to 50MB
-      const result = await ingestExcelFile(file, user.id, spreadsheet.id, {
-        onProgress: (phase, percent) => {
-          console.log('[Upload Progress]', phase, percent + '%');
-          setUploadProgress({ phase, percent, visible: true });
-        },
-        maxFileSizeMB: 150
+      // STEP 1: Get presigned URL from our server
+      setUploadProgress({ phase: '🔐 Obteniendo URL de carga segura...', percent: 5, visible: true });
+      const { presignedUrl, fileKey } = await getPresignedUrl(file.name);
+      console.log('[Upload] Presigned URL received for:', fileKey);
+
+      // STEP 2: Upload directly to R2 (ZERO server RAM!)
+      setUploadProgress({ phase: '📤 Subiendo archivo a R2...', percent: 10, visible: true });
+      await uploadToR2(presignedUrl, file, (uploadPercent) => {
+        // Map 0-100 upload progress to 10-50 range
+        const mappedPercent = 10 + (uploadPercent * 0.4);
+        setUploadProgress({
+          phase: `📤 Subiendo: ${uploadPercent}%`,
+          percent: Math.round(mappedPercent),
+          visible: true
+        });
+      });
+      console.log('[Upload] File uploaded to R2 successfully');
+
+      // STEP 3: Notify server to start processing
+      setUploadProgress({ phase: '⚙️ Iniciando procesamiento...', percent: 55, visible: true });
+      const { jobId } = await notifyUploadComplete(fileKey, user.id, spreadsheet.id);
+      console.log('[Upload] Processing job enqueued:', jobId);
+
+      // STEP 4: Poll for job completion
+      setUploadProgress({ phase: '🔄 Procesando Excel (streaming)...', percent: 60, visible: true });
+      const result = await waitForJobCompletion(jobId, (status) => {
+        const progress = typeof status.progress === 'number' ? status.progress : 0;
+        // Map job progress 0-100 to 60-95 range
+        const mappedPercent = 60 + (progress * 0.35);
+        setUploadProgress({
+          phase: `🔄 Procesando: ${progress}%`,
+          percent: Math.round(mappedPercent),
+          visible: true
+        });
       });
 
-      console.log('[Upload] Ingestion complete. Sheets:', Object.keys(result.workbook.sheets || {}).length);
-      console.log('[Upload] Workbook ID:', result.workbook.id);
-      console.log('[Upload] First sheet sample:', JSON.stringify(Object.values(result.workbook.sheets || {})[0]?.cellData?.['0'] || {}).substring(0, 200));
+      console.log('[Upload] Processing complete:', result);
+      console.log('[Upload] Manifest:', result.result?.manifestKey);
+      console.log('[Upload] Total rows:', result.result?.totalRows);
+      console.log('[Upload] Total chunks:', result.result?.totalChunks);
 
-      // Show warnings if any
-      if (result.warnings.length > 0) {
-        console.warn('[Upload] Warnings:', result.warnings);
-      }
+      // STEP 5: Update spreadsheet record with manifest location
+      await supabase
+        .from('spreadsheets')
+        .update({
+          storage_path: result.result?.manifestKey,
+          status: 'draft'
+        })
+        .eq('id', spreadsheet.id);
 
-      setUploadProgress({ phase: '💾 Comprimiendo y guardando...', percent: 85, visible: true });
-
-      // NEW: Save to Supabase Storage with gzip compression
-      try {
-        const saveResult = await saveSnapshot(spreadsheet.id, result.workbook, (phase, percent) => {
-          // Map 0-100 to 85-98 range
-          const mappedPercent = 85 + (percent * 0.13);
-          setUploadProgress({ phase: `💾 ${phase}`, percent: Math.round(mappedPercent), visible: true });
-        });
-        console.log('[Upload] Saved to storage:', saveResult.storagePath);
-        console.log(`[Upload] Compression: ${(saveResult.originalSize / 1024 / 1024).toFixed(2)}MB → ${(saveResult.compressedSize / 1024 / 1024).toFixed(2)}MB (${saveResult.compressionRatio}% saved)`);
-      } catch (storageError: any) {
-        console.error('[Upload] Storage save failed, falling back to raw_data:', storageError);
-        // Fallback: save to raw_data if storage fails
-        const { error: updateError } = await supabase
-          .from('spreadsheets')
-          .update({ raw_data: result.workbook })
-          .eq('id', spreadsheet.id);
-        if (updateError) throw updateError;
-      }
-
-      console.log('[Upload] Setting data state with workbook:', result.workbook.id);
-
-      setData(result.workbook);
       setStatus("draft");
-      setUploadProgress({ phase: '✅ Completado', percent: 100, visible: true });
+      setUploadProgress({ phase: '✅ Completado! Archivo procesado en chunks.', percent: 100, visible: true });
 
       // Brief delay to show completion
-      await new Promise(resolve => setTimeout(resolve, 800));
-      fetchProjects(); // Refresh list
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Set manifest path to trigger ChunkedUniverGrid loading
+      setManifestPath(result.result?.manifestKey || null);
+      setData(null); // Clear legacy data
+      fetchProjects();
+
+      console.log(`[Upload] SUCCESS: ${result.result?.totalRows} rows in ${result.result?.totalChunks} chunks`);
 
     } catch (err: any) {
-      console.error("Upload error:", err);
+      console.error("[Upload] Streaming upload error:", err);
       alert(`Error durante la carga: ${err.message}`);
     } finally {
       setLoading(false);
@@ -350,14 +368,22 @@ function App() {
                 <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                   <div style={{ flex: 1, position: 'relative' }}>
                     <ErrorBoundary>
-                      <UniverGrid
-                        key={`univer-${spreadsheetId}-${data?.id || 'empty'}`}
-                        data={data}
-                        readOnly={status !== 'draft'}
-                        onChange={(newData) => {
-                          console.log('[AutoGrid] Data changed');
-                        }}
-                      />
+                      {manifestPath ? (
+                        <ChunkedUniverGrid
+                          key={`chunked-${spreadsheetId}-${manifestPath}`}
+                          manifestPath={manifestPath}
+                          readOnly={status !== 'draft'}
+                        />
+                      ) : (
+                        <UniverGrid
+                          key={`univer-${spreadsheetId}-${data?.id || 'empty'}`}
+                          data={data}
+                          readOnly={status !== 'draft'}
+                          onChange={() => {
+                            console.log('[AutoGrid] Data changed');
+                          }}
+                        />
+                      )}
                     </ErrorBoundary>
                   </div>
 
