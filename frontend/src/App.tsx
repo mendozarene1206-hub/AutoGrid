@@ -3,17 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 import { UniverGrid } from './components/UniverGrid';
 import { ChunkedUniverGrid } from './components/ChunkedUniverGrid';
 import { Dashboard } from './components/Dashboard';
-import { Sidebar } from './components/Sidebar';
 import type { IWorkbookData } from '@univerjs/core';
 import { AdminDashboard } from './components/AdminDashboard';
-import { NotificationBell } from './components/NotificationBell';
-import { AuditLog } from './components/AuditLog';
-import { AuditButton } from './components/AuditButton';
 import { UploadProgress } from './components/UploadProgress';
-import { exportToPDF } from './utils/pdfExport';
-import { saveSnapshot, loadSnapshot, ensureStorageBucket } from './services/UniverPersistenceService';
-// NEW: Streaming upload utilities (replaces ingestExcelFile for large files)
+import { saveSnapshot, loadSnapshot } from './services/UniverPersistenceService';
 import { getPresignedUrl, uploadToR2, notifyUploadComplete, waitForJobCompletion } from './utils/r2Client';
+// New Design System Components
+import { IconNav } from './components/IconNav';
+import { GlobalHeader } from './components/GlobalHeader';
+import { ViewToggle, type ViewMode } from './components/ViewToggle';
+import { SplitViewContainer } from './components/SplitViewContainer';
+import { EstimationKanban } from './components/EstimationKanban';
+import { SelectionSidebar } from './components/SelectionSidebar';
 import './App.css';
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
@@ -59,6 +60,15 @@ function App() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState<'home' | 'projects' | 'shared'>('home');
   const [uploadProgress, setUploadProgress] = useState({ phase: '', percent: 0, visible: false });
+  const [viewMode, setViewMode] = useState<ViewMode>('GRID');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [cellSelection, setCellSelection] = useState<{
+    startRow: number;
+    endRow: number;
+    startCol: number;
+    endCol: number;
+    values: (string | number | null)[];
+  } | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -293,120 +303,167 @@ function App() {
     }
   };
 
-  const [isAuditOpen, setIsAuditOpen] = useState(false);
+  // Note: isAuditOpen removed, replaced by isSidebarOpen for SelectionSidebar
 
   return (
-    <div className="workspace-layout">
-      {/* Sidebar Navigation - Persistent */}
-      <Sidebar
-        className="persistent-sidebar"
-        onHomeClick={() => { setSpreadsheetId(null); setData(null); }}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+    <div className="app-container">
+      {/* Global Header - Always visible when in editor */}
+      {spreadsheetId && (
+        <GlobalHeader
+          projectName={projects.find(p => p.id === spreadsheetId)?.name || 'Project'}
+          fileName={projects.find(p => p.id === spreadsheetId)?.name || 'Estimation'}
+          status={status}
+          onLockSubmit={() => console.log('Lock & Submit clicked')}
+          isLocked={status === 'approved'}
+        />
+      )}
 
-      {/* Main Content Area */}
-      <main className={`main-content ${spreadsheetId ? 'editor-mode' : ''}`}>
-        {showAdmin ? (
-          <AdminDashboard />
-        ) : (
-          <>
-            {!spreadsheetId ? (
-              <Dashboard
-                projects={projects}
-                onProjectClick={openProject}
-                onUploadClick={() => handleUpload()}
-                onCreateClick={handleCreateProject}
-                loading={loading}
-              />
-            ) : (
-              <div className="editor-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-                {/* Orbital-Style Header */}
-                <div className="univer-header glassmorphism-light">
-                  {/* Top Bar: Data/Auto/Interface Pills */}
-                  <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
-                    <div className="header-pills">
-                      <button className="pill active">Data</button>
-                      <button className="pill">Automation</button>
-                      <button className="pill">Interface</button>
-                    </div>
-                    <div style={{ position: 'absolute', right: '20px', top: '12px', display: 'flex', gap: '10px' }}>
-                      <button className="icon-btn-simple">❓</button>
-                      <button className="icon-btn-simple">⏰</button>
-                      <button className="share-btn">Share</button>
-                    </div>
-                  </div>
-
-                  {/* Title and View Bar */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text-dark)' }}>
-                        {userProfile?.role === 'resident' ? 'Q1 Report' : 'Master Review'}
-                      </h2>
-                      <span style={{ fontSize: '0.8rem', color: '#888' }}>▼</span>
-                    </div>
-                  </div>
-
-                  {/* View Tabs */}
-                  <div className="view-tabs-bar">
-                    <button className="view-tab active "><span className="icon">▦</span> Grid View</button>
-                    <button className="view-tab"><span className="icon">📊</span> Kanban View</button>
-                    <button className="view-tab"><span className="icon">📝</span> Form View</button>
-                    <button className="view-tab"><span className="icon">📅</span> Calendar View</button>
-                    <button className="view-tab add-view">+ Add View</button>
-
-                    <div className="view-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '12px' }}>
-                      <button className="text-btn">Group</button>
-                      <button className="text-btn">Hide Fields</button>
-                      <button className="text-btn">Filter</button>
-                      <button className="text-btn">Sort</button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Main Grid Area + Sidebar */}
-                <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                  <div style={{ flex: 1, position: 'relative' }}>
-                    <ErrorBoundary>
-                      {manifestPath ? (
-                        <ChunkedUniverGrid
-                          key={`chunked-${spreadsheetId}-${manifestPath}`}
-                          manifestPath={manifestPath}
-                          readOnly={status !== 'draft'}
-                        />
-                      ) : (
-                        <UniverGrid
-                          key={`univer-${spreadsheetId}-${data?.id || 'empty'}`}
-                          data={data}
-                          readOnly={status !== 'draft'}
-                          onChange={() => {
-                            console.log('[AutoGrid] Data changed');
-                          }}
-                        />
-                      )}
-                    </ErrorBoundary>
-                  </div>
-
-                  {/* Collapsible Right Sidebar */}
-                  {isAuditOpen && (
-                    <div style={{
-                      width: '320px',
-                      borderLeft: '1px solid var(--border)',
-                      background: 'var(--bg)',
-                      overflowY: 'auto',
-                      padding: '1rem',
-                      animation: 'slideInRight 0.3s ease-out'
-                    }}>
-                      <AuditButton spreadsheetId={spreadsheetId} sheetContext={data} />
-                      <AuditLog spreadsheetId={spreadsheetId || ''} />
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </>
+      <div className="app-body">
+        {/* Icon Navigation - Slim sidebar */}
+        {spreadsheetId && (
+          <IconNav
+            currentView={viewMode}
+            onViewChange={setViewMode}
+          />
         )}
-      </main>
+
+        {/* Main Content Area */}
+        <main className="app-main">
+          {showAdmin ? (
+            <AdminDashboard />
+          ) : (
+            <>
+              {!spreadsheetId ? (
+                <Dashboard
+                  projects={projects}
+                  onProjectClick={openProject}
+                  onUploadClick={() => handleUpload()}
+                  onCreateClick={handleCreateProject}
+                  loading={loading}
+                />
+              ) : (
+                <div className="editor-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+                  {/* Orbital-Style Header */}
+                  <div className="univer-header glassmorphism-light">
+                    {/* Top Bar: Data/Auto/Interface Pills */}
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-light)' }}>
+                      <div className="header-pills">
+                        <button className="pill active">Data</button>
+                        <button className="pill">Automation</button>
+                        <button className="pill">Interface</button>
+                      </div>
+                      <div style={{ position: 'absolute', right: '20px', top: '12px', display: 'flex', gap: '10px' }}>
+                        <button className="icon-btn-simple">❓</button>
+                        <button className="icon-btn-simple">⏰</button>
+                        <button className="share-btn">Share</button>
+                      </div>
+                    </div>
+
+                    {/* Title and View Bar */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text-dark)' }}>
+                          {userProfile?.role === 'resident' ? 'Q1 Report' : 'Master Review'}
+                        </h2>
+                        <span style={{ fontSize: '0.8rem', color: '#888' }}>▼</span>
+                      </div>
+                    </div>
+
+                    {/* View Toggle - GRID | SPLIT | KANBAN */}
+                    <div className="view-tabs-bar">
+                      <ViewToggle currentView={viewMode} onViewChange={setViewMode} />
+
+                      <div className="view-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <button className="text-btn">Group</button>
+                        <button className="text-btn">Hide Fields</button>
+                        <button className="text-btn">Filter</button>
+                        <button className="text-btn">Sort</button>
+                        <div style={{ width: '1px', height: '20px', background: '#e2e8f0', margin: '0 4px' }} />
+                        <button
+                          className={`text-btn ${isSidebarOpen ? 'active' : ''}`}
+                          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: isSidebarOpen ? '#eff6ff' : 'transparent',
+                            padding: '4px 8px',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          📊 Summary
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Main Content Area - Renders based on viewMode */}
+                  <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <ErrorBoundary>
+                        {/* GRID VIEW */}
+                        {viewMode === 'GRID' && (
+                          <>
+                            {manifestPath ? (
+                              <ChunkedUniverGrid
+                                key={`chunked-${spreadsheetId}-${manifestPath}`}
+                                manifestPath={manifestPath}
+                                readOnly={status !== 'draft'}
+                              />
+                            ) : (
+                              <UniverGrid
+                                key={`univer-${spreadsheetId}-${data?.id || 'empty'}`}
+                                data={data}
+                                readOnly={status !== 'draft'}
+                                onChange={() => {
+                                  console.log('[AutoGrid] Data changed');
+                                }}
+                              />
+                            )}
+                          </>
+                        )}
+
+                        {/* SPLIT VIEW */}
+                        {viewMode === 'SPLIT' && (
+                          <SplitViewContainer
+                            workbookData={data}
+                            readOnly={status !== 'draft'}
+                          />
+                        )}
+
+                        {/* KANBAN VIEW */}
+                        {viewMode === 'KANBAN' && (
+                          <EstimationKanban
+                            estimations={projects.map(p => ({
+                              id: p.id,
+                              projectName: p.name || `Project ${p.id.slice(0, 8)}`,
+                              contractorName: p.contractor_name,
+                              totalAmount: p.total_amount,
+                              status: p.status,
+                              updatedAt: p.updated_at
+                            }))}
+                            onCardClick={(est) => {
+                              openProject(est.id);
+                              setViewMode('GRID');
+                            }}
+                          />
+                        )}
+                      </ErrorBoundary>
+                    </div>
+
+                    {/* Selection Sidebar */}
+                    <SelectionSidebar
+                      selection={cellSelection}
+                      isOpen={isSidebarOpen && viewMode === 'GRID'}
+                      onClose={() => setIsSidebarOpen(false)}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </main>
+      </div>
 
       {/* Upload Progress Overlay */}
       <UploadProgress
