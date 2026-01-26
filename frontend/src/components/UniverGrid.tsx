@@ -21,6 +21,12 @@ import sheetsCoreCssEn from '@univerjs/presets/preset-sheets-core/locales/es-ES'
 // Estilos de Univer
 import '@univerjs/presets/lib/styles/preset-sheets-core.css';
 
+// AutoGrid Enhanced Styles
+import './AutoGridEnhanced.css';
+
+// Custom Hooks
+import { useGridKeyboardShortcuts } from '../hooks/useGridKeyboardShortcuts';
+
 // Plugins de Datos y UI Básica
 import { UniverSheetsNumfmtPlugin } from '@univerjs/sheets-numfmt';
 import { UniverSheetsFilterPlugin } from '@univerjs/sheets-filter';
@@ -59,6 +65,12 @@ export const UniverGrid: React.FC<UniverGridProps> = ({
     const univerAPIRef = useRef<any>(null);
     const [isReady, setIsReady] = useState(false);
     const isMountedRef = useRef(true);
+
+    // Keyboard shortcuts integration
+    const { shortcuts, showHelp, setShowHelp } = useGridKeyboardShortcuts({
+        univerAPI: univerAPIRef.current,
+        enabled: isReady && !readOnly
+    });
 
     const cleanupUniver = useCallback(() => {
         if (univerRef.current) {
@@ -237,14 +249,33 @@ export const UniverGrid: React.FC<UniverGridProps> = ({
     };
 
     return (
-        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            {/* Toolbar Overlay for Theme Toggle */}
+        <div style={{ position: 'relative', width: '100%', height: '100%' }} className={isDarkMode ? 'dark-mode' : ''}>
+            {/* Toolbar Overlay for Theme Toggle & Keyboard Help */}
             <div style={{
                 position: 'absolute',
                 top: '10px',
-                right: '250px', // Adjust to not overlap with standard buttons
+                right: '180px',
                 zIndex: 100,
+                display: 'flex',
+                gap: '8px'
             }}>
+                <button
+                    onClick={() => setShowHelp(prev => !prev)}
+                    style={{
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid #d9d9d9',
+                        background: isDarkMode ? '#1f1f1f' : '#ffffff',
+                        color: isDarkMode ? '#ffffff' : '#000000',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}
+                    title="Atajos de teclado (Ctrl+/)"
+                >
+                    ⌨️
+                </button>
                 <button
                     onClick={handleThemeToggle}
                     style={{
@@ -263,13 +294,34 @@ export const UniverGrid: React.FC<UniverGridProps> = ({
                 </button>
             </div>
 
+            {/* Keyboard Shortcuts Help Overlay */}
+            {showHelp && (
+                <div className="keyboard-shortcuts-overlay">
+                    <h4>⌨️ Atajos de Teclado</h4>
+                    {shortcuts.slice(0, 8).map((shortcut, idx) => (
+                        <div key={idx} className="shortcut-item">
+                            <span className="shortcut-key">
+                                {shortcut.ctrl && 'Ctrl+'}
+                                {shortcut.shift && 'Shift+'}
+                                {shortcut.alt && 'Alt+'}
+                                {shortcut.key.toUpperCase()}
+                            </span>
+                            <span className="shortcut-desc">{shortcut.description}</span>
+                        </div>
+                    ))}
+                    <div style={{ marginTop: '12px', fontSize: '11px', color: '#64748b' }}>
+                        Presiona <span className="shortcut-key">Esc</span> o <span className="shortcut-key">Ctrl+/</span> para cerrar
+                    </div>
+                </div>
+            )}
+
             <div
                 style={{
                     width: '100%',
                     height: '100%',
-                    borderRadius: '0', // Full bleed
+                    borderRadius: '0',
                     overflow: 'hidden',
-                    border: 'none', // Remove border for clean look
+                    border: 'none',
                     backgroundColor: isDarkMode ? '#000' : '#fff'
                 }}
             >

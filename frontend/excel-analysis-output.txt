@@ -1,0 +1,90 @@
+📂 Analyzing: C:\Users\mendo\Desktop\AutoGrid\SUMMYT_ESTIMACIÓN  29-.xlsx
+
+📊 WORKBOOK STRUCTURE
+====================
+Total sheets: 263
+Sheet names: Hoja1, 00 HOJA VIAJERA, 01 Consecutivo f, 02 Carátula f, 02 Avance f, Hoja3, 03 Desglose f, Hoja21, 5.2.2.1-ZAPATAS DE LOBBY, 5.2.2.1-ZAPATAS D Generador , 5.2.2.1-ZAPATAS DE CROQUIS, 5.2.2.1-ZAPATAS DE LOBBY FOTOS , 5.2.2.1-PEDESTALES DE LOBBY , 5.2.2.1-PEDESTALES DE Generador, 5.2.2.1-PEDESTALES DE  CROQUIS , 5.2.2.1-PEDESTALE DE LOBBY FOTO, 5.2.4.1, 5.2.4.1.  Generador , 5.2.4.1.  CROQUIS , 5.2.4.1.  FOTOS , 5.2.4.2.  CN3, 5.2.4.2.  Generador CN3, 5.2.4.2.  FOTOS CN3, 5.2.4.2.  CN4, 5.2.4.2.  CN5, 5.2.4.2.  Generador CN5, 5.2.4.2.  FOTOS CN5, 5.2.4.2.  CN6, 5.2.4.2.  Generador CN6, 5.2.4.2.  CROQUIS  CN6, 5.2.4.2.  FOTOS CN6, 5.2.4.2.  Generador CN4, 5.2.4.2.  FOTOS CN4, 5.2.4.2.  CN8, 5.2.4.2.  Generador CN8, 5.2.4.2.  CROQUIS  CN8, 5.2.4.2.  FOTOS CN8, 5.2.4.2.  CN9, 5.2.4.2.  CROQUIS  CN9, 5.2.4.2.  Generador CN9, 5.2.4.2.  CN10, 5.2.4.2.  CROQUIS  CN10, 5.2.4.2.  Generador CN10, 5.2.4.2.  FOTOS CN10, 5.2.4.2.  FOTOS CN9, 5.2.4.5.  N3, LOSA N3  Generador , LOSA N3  CROQUIS , 5.2.4.5. LOSA N3 FOTOS  , 5.2.4.5.  N4, LOSA N4  Generador , LOSA N4  CROQUIS , LOSA N4 FOTOS, 5.2.4.2.  C-LOBBY), 5.2.4.2.  Generador CN LOBBY), 5.2.4.2.  CROQUIS  CN LOBBY), 5.2.4.2.  FOTOS CN LOBBY), 5.2.4.5. (5), 5.2.4.5. N9, LOSA N9  Generador , LOSA N9  CROQUIS ), LOSA N9 FOTOS , 5.2.4.5. LOSA N5 , LOSA N5  Generador , LOSA N5 FOTOS, 5.2.4.5. N6 , LOSA N6  Generador , LOSA N6 FOTOS, LOSA SP, LOSA GENERADOR  SP, LOSA SP  CROQUIS  , LOSA SP FOTOS   , 5.2.4.5. (4), GRUA  Generador   (2), GRUA  Generador   (3), GRUA  CROQUIS  (2), 5.2.4.5. NAZ, LOSA NAZ  Generador  , LOSA NAZ  CROQUIS , LOSA NAZ FOTOS   , 5.2.4.5. (3), GRUA  Generador  , GRUA  CROQUIS , GRUA  FOTOS , 5.2.4.5. Cierre de huecos, GENERADOR Cierre de huecos , CIERRE DE HUECOS CROQUIS  , 5.2.4.5. BALASTRO, BALASTRO  Generador, BALASTRO CROQUIS , BALASTROFOTOS, 5.2.4.5.(5), LABORATORIO  Generador, LAB CROQUIS, LAB FOTOS, 5.2.4.5.Montaje elevador se (2), Montaje elevador sencGenera (2), Montaje elevador senc CROQU (2), Montaje elevador sencilloFO (2), 5.2.4.5.Renta elevador senc (2), Hoja6, Renta elevador sencilloGene (2), Renta elevador sencillo CRO (2), Renta elevador sencilloFOTO (2), 5.2.4.5. N10, LOSA N10  Generador  , LOSA N10  CROQUIS , LOSA N10 FOTOS  , 5.2.4.5.Renta elevador sencil2, Renta elevador sencilloGenera, Renta elevador sencillo CROQU, Renta elevador sencilloFOTOS, 5.2.4.6. E4, MURO  Generador E4, MURO  FOTOS  E4, 5.2.4.6. PB, MURO  Generador PB, MURO  CROQUIS PB, MURO  FOTOS PB, 5.2.4.6. N2, MURO  Generador N2, MURO  CROQUIS N2, GRUA  Generador   (4), DIAS N-A TG, GRUA  CROQUIS  (3), GRUA  FOTOS  (2), MURO  FOTOS  N2, 5.2.4.6. (7), MURO  Generador N3, MURO  CROQUIS N2 (2), MURO  FOTOS   (5), 5.2.4.6. MURO N4, MURO  Generador N4, MURO  FOTOS   MURO N4, 5.2.4.6 MURO N9, MURO  Generador N9, MURO  CROQUIS N9, MURO  FOTOS  N9, 5.2.4.6. MURO N5, MURO  Generador N5, MURO  FOTOS   MURO N5, 5.2.4.6. MURO N6, MURO  Generador N6, MURO  FOTOS   MURO N6, 5.2.4.6 MURO N AZ, MURO  Generador N AZ , MURO  CROQUIS AZ, MURO  FOTOS  AZ, 5.2.4.6 MURO N10, MURO  Generador N10, MURO  CROQUIS N10, MURO  FOTOS  N10, 5.2.5.9 100% (3), FIRME GENERADOR (3), FIRME FOTOS (3), 5.2.4.5.(6), LABORATORIO  Generador (2), LAB CROQUIS (2), LAB FOTOS (2), 5.2.4.6 MURO N8, MURO  Generador N8 , MURO  CROQUIS N8, MURO  FOTOS  N8, 5.2.5.19  ESC N4 N5, Escalera generador N4 N5, 03 Desglose f (2), Escalera croquis N4 N5, Escalera FOTOS N4 N5, 5.2.5.19  ESC N5 N6, Escalera generador N5 N6, Escalera croquis N5 N6, Escalera FOTOS N5 N6, 5.2.5.19  ESC E-1, Escalera generador E-1 A E-2, Escalera FOTOS E1-E2, 5.2.5.19  ESC E-2 A E-3, Escalera generador E-2 A E-3, Escalera FOTOS E-2 A E-3, 5.2.5.19  ESC E-3 A E-4, Escalera generador E-3 A E-4, Escalera FOTOS E-3 A E-4, 5.2.5.19  ESC E-4 A PB, Escalera generador E-4 A PB, Escalera FOTOS E-4 A PB, 5.2.5.19  ESC N7 N8 , Escalera generador N7 N8, Escalera croquis N7 N8, Escalera FOTOS N7 N8, 5.2.5.19  ESC N8 N9, Escalera generador N8 N9, Escalera croquis N8 N9, 5.2.5.19  ESC N9 N10, Escalera generador N9 N10, Escalera croquis N9-N10, 5.2.5.19  ESC N10-AZ, Escalera generador N10-AZ, Escalera croquis N10-AZ, GRUA  FOTOS  (3), 5.2.4.5. LOSA N2 (2), 5.2.4.2.  CPB, 5.2.4.2.  FOTOS  CPB, 5.2.4.2.  CN2, 5.2.4.2.  FOTOS  CN2, 5.2.4.2.  (2), 5.2.4.2.  Generador (2), 5.2.4.2.  CROQUIS , 5.2.4.2.  FOTOS , 5.2.4.2.  (3), 5.2.4.2.  Generador (3), 5.2.4.2.  CROQUIS  (2), 5.2.4.2.  FOTOS  (2), 5.2.4.2.  CN7, 5.2.4.2.  Generador CN7, 5.2.4.2.  CROQUIS  CN7, 5.2.4.2.  FOTOS CN7 , 5.2.4.5.  (3), E3 Y N2 LOSA FOTOS , 5.2.4.5.  (2), N3 LOSA FOTOS  (2), 5.2.4.3ALBERCA, 5.2.4.3 ALBERCA Generador, 5.2.4.3ALBERCA CROQUIS , 5.2.4.3 ALBERCA FOTOS , 5.2.4.5. LOSA N2, 5.2.4.5. LOSA N2  Generador , 5.2.4.5. LOSA N2  CROQUIS , 5.2.4.5. LOSA N2 FOTOS , 5.2.4.5. N8, LOSA N8  Generador , LOSA N8  CROQUIS, LEVATMIENTO, LOSA N8 FOTOS, Hoja2, 5.2.4.5.Montaje elevador senci , Montaje elevador sencGenerador , Montaje elevador senc CROQUIS  , Montaje elevador sencilloFOTOS, 5.2.4.6 MURO N7., MURO  Generador  , MURO  CROQUIS , MURO  FOTOS  , 5.2.5.9 (2), FIRME GENERADOR (2), 03 Desglose (2), FIRME CROQUIS (2), FIRME FOTOS (2), FIRME CROQUIS (3), 03 Desglose, MURO REPARADO , MURO REPARADO  (2), MURO REPARADO  (3), 5.2.5.9, FIRME GENERADOR, FIRME CROQUIS, FIRME FOTOS, 5.2.4.6. (5), ESCALERAS  FOTOS   (5), 5.2.4.6. (6), MURO  FOTOS   (6), 5.2.5.19 , Escalera generador, Escalera croquis, Escalera FOTOS
+
+============================================================
+📋 SHEET: "Hoja1"
+============================================================
+   Rows: 216
+   Columns: 23
+
+   HEADER ANALYSIS (first 8 rows):
+
+   DATA SAMPLE (rows 10-25):
+   Row 10: [6]ELABORÓ | [8]REVISÓ | [10]AUTORIZÓ | [12]AUTORIZÓ
+   Row 16: [6]Ing. Sair Tamez | [8]Arq. Juan Pablo | [10]ING. René Mendo | [12]Arq. Lizbeth Áv
+   Row 17: [6]ADM. DE OBRA | [8]SUPERINTENDENTE | [10]COORD. OBRA CIV | [12]COORD. ADMINIST
+   Row 18: [6]GRUPO DAGS  | [8]GRUPO DAGS  | [10]BRICKWALLING | [12]BRICKWALLING
+
+   FORMULAS: 0 formulas in first 100 rows
+
+   COLUMN WIDTHS:
+   Col 1: width=default
+   Col 2: width=default
+   Col 3: width=default
+   Col 4: width=default
+   Col 5: width=default
+   Col 6: width=24.85546875
+   Col 7: width=2.85546875
+   Col 8: width=24.85546875
+   Col 9: width=2.85546875
+   Col 10: width=24.85546875
+   Col 11: width=2.85546875
+   Col 12: width=24.85546875
+
+============================================================
+📋 SHEET: "00 HOJA VIAJERA"
+============================================================
+   Rows: 32
+   Columns: 25
+
+   HEADER ANALYSIS (first 8 rows):
+   Row 1: [Col2]"HOJA VIAJERA"
+   Row 4: [Col2]"PROYECTO:" | [Col3]"[F]"
+   Row 5: [Col2]"UBICACIÓN:" | [Col3]"[F]"
+   Row 6: [Col2]"CONTRATISTA:" | [Col3]"[F]"
+   Row 7: [Col2]"ESPECIALIDAD:" | [Col3]"[F]"
+
+   DATA SAMPLE (rows 10-25):
+   Row 10: [3]ENTREGA | [4]ENTREGA | [5]ENTREGA | [6]ENTREGA | [7]RECIBE | [8]RECIBE | [9]RECIBE | [10]RECIBE
+   Row 11: [3]Nombre | [4]Fecha | [5]Hora | [6]Firma | [7]Nombre | [8]Fecha | [9]Hora | [10]Firma | [11]Comentarios / O
+   Row 12: [2]1 | [3]SAIR TAMEZ | [4](obj) | [5]13:00 PM | [12][F]
+   Row 13: [2]2
+   Row 14: [2]3
+   Row 15: [2]4
+   Row 16: [2]5
+   Row 17: [2]6
+   Row 18: [2]7
+   Row 19: [2]8
+   Row 20: [2]9
+   Row 21: [2]10
+   Row 22: [2]11
+   Row 23: [2]12
+
+   FORMULAS: 5 formulas in first 100 rows
+   - C4: +'03 Desglose'!C6
+   - C5: +'03 Desglose'!C7
+   - C6: +'03 Desglose'!C8
+   - C7: +'03 Desglose'!C9
+   - L12: SUBTOTAL(9,L20:L48)
+
+   COLUMN WIDTHS:
+   Col 1: width=2.85546875
+   Col 2: width=14.85546875
+   Col 3: width=40.42578125
+   Col 4: width=29.140625
+   Col 5: width=29.140625
+   Col 6: width=29.140625
+   Col 7: width=43.5703125
+   Col 8: width=18.42578125
+   Col 9: width=16.85546875
+   Col 10: width=18.28515625
+   Col 11: width=46.5703125
+   Col 12: width=5.42578125
+
+   (Limiting to first 2 sheets...)
+
+✅ Analysis complete!
