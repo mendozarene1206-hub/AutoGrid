@@ -69,6 +69,7 @@ async function convertExcelJSToUniver(
     const sheetOrder: string[] = [];
     const images: IngestResult['images'] = [];
     const styles: Record<string, IStyleData> = {};
+    const styleCache = new Map<string, string>(); // Style deduplication cache
     let styleIndex = 0;
 
     const totalSheets = workbook.worksheets.length;
@@ -123,12 +124,17 @@ async function convertExcelJSToUniver(
                 const univerCell: any = { v: value ?? '', t: cellType };
                 if (formula) univerCell.f = formula;
 
-                // Simple style conversion to avoid bloat in worker
+                // Style conversion with deduplication to avoid memory bloat
                 const style = convertExcelJSStyleToUniver(cell);
                 if (style && Object.keys(style).length > 0) {
-                    const styleId = `s${styleIndex++}`;
-                    styles[styleId] = style;
-                    univerCell.s = styleId;
+                    // Deduplicate styles via JSON hashing
+                    const styleHash = JSON.stringify(style);
+                    if (!styleCache.has(styleHash)) {
+                        const styleId = `s${styleIndex++}`;
+                        styleCache.set(styleHash, styleId);
+                        styles[styleId] = style;
+                    }
+                    univerCell.s = styleCache.get(styleHash);
                 }
 
                 cellData[rowIndex][colIndex] = univerCell;
@@ -183,20 +189,71 @@ async function convertExcelJSToUniver(
     return univerWorkbook;
 }
 
-// Minimal style converter for worker
+// Complete style converter for worker (includes borders - critical for WBS files)
 function convertExcelJSStyleToUniver(cell: ExcelJS.Cell): IStyleData | undefined {
-    const style: IStyleData = {};
+    const style: any = {};
     let hasStyle = false;
 
-    if (cell.font?.bold) { style.bd = 1; hasStyle = true; }
+    // Font properties
+    if (cell.font?.bold) { style.bl = 1; hasStyle = true; }
     if (cell.font?.italic) { style.it = 1; hasStyle = true; }
     if (cell.font?.strike) { style.st = { s: 1 }; hasStyle = true; }
     if (cell.font?.underline) { style.ul = { s: 1 }; hasStyle = true; }
-    if (cell.font?.color?.argb) { style.cl = { rgb: '#' + cell.font.color.argb.substring(2) }; hasStyle = true; }
+    if (cell.font?.size) { style.fs = cell.font.size; hasStyle = true; }
+    if (cell.font?.name) { style.ff = cell.font.name; hasStyle = true; }
+    if (cell.font?.color?.argb) {
+        style.cl = { rgb: '#' + cell.font.color.argb.substring(2) };
+        hasStyle = true;
+    }
+
+    // Background color
     if (cell.fill?.type === 'pattern' && cell.fill.pattern === 'solid' && cell.fill.fgColor?.argb) {
         style.bg = { rgb: '#' + cell.fill.fgColor.argb.substring(2) };
         hasStyle = true;
     }
+
+    // Alignment
+    if (cell.alignment) {
+        const hMap: Record<string, number> = { left: 1, center: 2, right: 3, justify: 4 };
+        const vMap: Record<string, number> = { top: 1, middle: 2, bottom: 3 };
+
+        if (cell.alignment.horizontal && hMap[cell.alignment.horizontal]) {
+            style.ht = hMap[cell.alignment.horizontal];
+            hasStyle = true;
+        }
+        if (cell.alignment.vertical && vMap[cell.alignment.vertical]) {
+            style.vt = vMap[cell.alignment.vertical];
+            hasStyle = true;
+        }
+        if (cell.alignment.wrapText) {
+            style.tb = 2;
+            hasStyle = true;
+        }
+    }
+
+    // Borders (CRITICAL - was missing before!)
+    if (cell.border) {
+        style.bd = {};
+        const convertBorder = (border: any) => {
+            if (!border) return undefined;
+            const styleMap: Record<string, number> = {
+                'thin': 1, 'medium': 2, 'thick': 3, 'dotted': 4,
+                'dashed': 5, 'double': 6, 'hair': 7
+            };
+            return {
+                s: styleMap[border.style] || 1,
+                cl: border.color?.argb
+                    ? { rgb: '#' + border.color.argb.substring(2) }
+                    : { rgb: '#000000' }
+            };
+        };
+
+        if (cell.border.top) { style.bd.t = convertBorder(cell.border.top); hasStyle = true; }
+        if (cell.border.bottom) { style.bd.b = convertBorder(cell.border.bottom); hasStyle = true; }
+        if (cell.border.left) { style.bd.l = convertBorder(cell.border.left); hasStyle = true; }
+        if (cell.border.right) { style.bd.r = convertBorder(cell.border.right); hasStyle = true; }
+    }
+
     // Number format
     if (cell.numFmt) {
         style.n = { pattern: cell.numFmt };
@@ -205,6 +262,7 @@ function convertExcelJSStyleToUniver(cell: ExcelJS.Cell): IStyleData | undefined
 
     return hasStyle ? style : undefined;
 }
+
 
 function safeParseRange(rangeStr: string) {
     try {
