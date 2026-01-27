@@ -17,6 +17,12 @@ import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 import pLimit from "p-limit";
 import workflowRoutes from "./routes/workflow.routes.js";
+import authRoutes from "./routes/auth.routes.js";
+// Security & Middleware imports
+import { authenticateToken } from "./middleware/auth.js";
+import { securityHeaders, apiLimiter, llmLimiter, sanitizeErrors, corsOptions } from "./middleware/security.js";
+import { validateRequest, auditRequestSchema } from "./middleware/validation.js";
+import { llmLogger } from "./services/llm-logger.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config();
@@ -24,8 +30,11 @@ console.log("Supabase URL:", process.env.SUPABASE_URL);
 console.log("API Key Start:", process.env.GOOGLE_GENERATIVE_AI_API_KEY?.substring(0, 8));
 // CONFIGURACIÓN EXPRESS (HTTP)
 const app = express();
-app.use(cors());
-app.use(express.json()); // Essential for parsing POST bodies
+// Security middleware
+app.use(securityHeaders);
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' })); // Essential for parsing POST bodies
+app.use(apiLimiter); // General rate limiting
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -374,18 +383,22 @@ app.post("/messages", async (req, res) => {
     await transport.handlePostMessage(req, res);
 });
 // --- API DE AUDITORÍA (Bridge para el Frontend) ---
-app.post("/api/audit", async (req, res) => {
+app.post("/api/audit", authenticateToken, llmLimiter, validateRequest(auditRequestSchema), async (req, res) => {
     try {
         const { sheetContext, userMessage } = req.body;
         const context = sheetContext;
         const message = userMessage;
+        console.log(`[Audit API] Request from user: ${req.user?.email}`);
         const promptPath = path.join(__dirname, "system_prompt.md");
         const SYSTEM_PROMPT = fs.readFileSync(promptPath, "utf-8");
         console.log(`[Audit API] Nueva solicitud recibida. Agregando a la cola...`);
+        const requestId = llmLogger.generateRequestId();
+        const modelName = 'gemini-2.0-flash-lite-preview-02-05';
+        llmLogger.logRequestStart(requestId, { model: modelName, userId: req.user?.userId });
         const result = await limit(() => {
             console.log(`[Audit API] Procesando solicitud (Cola liberada).`);
             return withRetry(async () => {
-                return await generateText({
+                const response = await generateText({
                     model: google('gemini-2.0-flash-lite-preview-02-05'),
                     system: SYSTEM_PROMPT,
                     messages: [
@@ -461,7 +474,14 @@ app.post("/api/audit", async (req, res) => {
                     },
                     maxSteps: 5,
                 });
+                return response;
             });
+        });
+        // Log LLM completion
+        llmLogger.logRequestComplete(requestId, {
+            totalTokens: result.usage?.totalTokens,
+            promptTokens: result.usage?.promptTokens,
+            completionTokens: result.usage?.completionTokens,
         });
         console.log("Audit result generated successfully.");
         res.json({
@@ -475,11 +495,18 @@ app.post("/api/audit", async (req, res) => {
         if (error.response) {
             console.error("Error Response Data:", error.response.data);
         }
-        res.status(500).json({ error: error.message, details: error.toString() });
+        const isProduction = process.env.NODE_ENV === "production";
+        res.status(500).json({
+            error: isProduction ? "Audit failed" : error.message,
+            ...(isProduction ? {} : { details: error.toString() })
+        });
     }
 });
-// Mount workflow routes
+// Mount routes
 app.use('/workflow', workflowRoutes);
+app.use('/auth', authRoutes);
+// Error sanitizer (must be last middleware)
+app.use(sanitizeErrors);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`AutoGrid MCP Server running on HTTP port ${PORT}`);

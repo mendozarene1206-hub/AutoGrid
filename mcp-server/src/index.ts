@@ -22,6 +22,13 @@ import { google } from '@ai-sdk/google';
 import { generateText, tool } from 'ai';
 import pLimit from "p-limit";
 import workflowRoutes from "./routes/workflow.routes.js";
+import authRoutes from "./routes/auth.routes.js";
+
+// Security & Middleware imports
+import { authenticateToken, AuthenticatedRequest } from "./middleware/auth.js";
+import { securityHeaders, apiLimiter, llmLimiter, sanitizeErrors, corsOptions } from "./middleware/security.js";
+import { validateRequest, auditRequestSchema } from "./middleware/validation.js";
+import { llmLogger } from "./services/llm-logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,8 +40,12 @@ console.log("API Key Start:", process.env.GOOGLE_GENERATIVE_AI_API_KEY?.substrin
 
 // CONFIGURACIÓN EXPRESS (HTTP)
 const app = express();
-app.use(cors());
-app.use(express.json()); // Essential for parsing POST bodies
+
+// Security middleware
+app.use(securityHeaders);
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' })); // Essential for parsing POST bodies
+app.use(apiLimiter); // General rate limiting
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY!;
@@ -214,9 +225,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 inputSchema: {
                     type: "object",
                     properties: {
-                        expression: { 
-                            type: "string", 
-                            description: "Math expression. Examples: '24.5 * 10 * 1.16', '100 - 5%', 'sum([1,2,3,4])'" 
+                        expression: {
+                            type: "string",
+                            description: "Math expression. Examples: '24.5 * 10 * 1.16', '100 - 5%', 'sum([1,2,3,4])'"
                         },
                         context: {
                             type: "string",
@@ -376,18 +387,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     if (name === "math_evaluate") {
         const { expression, context } = args as { expression: string; context?: string };
-        
+
         try {
             const result = evaluate(expression);
             console.log(`[Math] ${context || 'Calculation'}: ${expression} = ${result}`);
-            
+
             return {
                 content: [{
                     type: "text",
                     text: JSON.stringify({
                         expression,
                         result: typeof result === 'number' ? result : result.toString(),
-                        formatted: typeof result === 'number' 
+                        formatted: typeof result === 'number'
                             ? new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(result)
                             : result.toString()
                     })
@@ -427,115 +438,142 @@ app.post("/messages", async (req, res) => {
 
 // --- API DE AUDITORÍA (Bridge para el Frontend) ---
 
-app.post("/api/audit", async (req, res) => {
-    try {
-        const { sheetContext, userMessage } = req.body;
-        const context = sheetContext;
-        const message = userMessage;
+app.post(
+    "/api/audit",
+    authenticateToken,
+    llmLimiter,
+    validateRequest(auditRequestSchema),
+    async (req: AuthenticatedRequest, res) => {
+        try {
+            const { sheetContext, userMessage } = req.body;
+            const context = sheetContext;
+            const message = userMessage;
 
-        const promptPath = path.join(__dirname, "system_prompt.md");
-        const SYSTEM_PROMPT = fs.readFileSync(promptPath, "utf-8");
+            console.log(`[Audit API] Request from user: ${req.user?.email}`);
 
-        console.log(`[Audit API] Nueva solicitud recibida. Agregando a la cola...`);
+            const promptPath = path.join(__dirname, "system_prompt.md");
+            const SYSTEM_PROMPT = fs.readFileSync(promptPath, "utf-8");
 
-        const result = await limit(() => {
-            console.log(`[Audit API] Procesando solicitud (Cola liberada).`);
-            return withRetry(async () => {
-                return await generateText({
-                    model: google('gemini-2.0-flash-lite-preview-02-05'),
-                    system: SYSTEM_PROMPT,
-                    messages: [
-                        {
-                            role: 'user',
-                            content: `Analiza esta hoja de estimación: ${JSON.stringify(context)}. 
+            console.log(`[Audit API] Nueva solicitud recibida. Agregando a la cola...`);
+
+            const requestId = llmLogger.generateRequestId();
+            const modelName = 'gemini-2.0-flash-lite-preview-02-05';
+            llmLogger.logRequestStart(requestId, { model: modelName, userId: req.user?.userId });
+
+            const result = await limit(() => {
+                console.log(`[Audit API] Procesando solicitud (Cola liberada).`);
+                return withRetry(async () => {
+                    const response = await generateText({
+                        model: google('gemini-2.0-flash-lite-preview-02-05'),
+                        system: SYSTEM_PROMPT,
+                        messages: [
+                            {
+                                role: 'user',
+                                content: `Analiza esta hoja de estimación: ${JSON.stringify(context)}. 
                                    Pregunta del usuario: ${message || "Audita la hoja completa."}`
-                        }
-                    ],
-                    tools: {
-                        query_catalog: {
-                            description: 'Search the official catalog for unit prices and contract volumes using a concept code (e.g., "5.2.4.1").',
-                            parameters: z.object({
-                                code: z.string().describe('The concept code to search for.')
-                            }),
-                            execute: async ({ code }: { code: string }) => {
-                                console.log(`Searching catalog for concept: ${code}`);
-                                const { data, error } = await supabase
-                                    .from("catalog_concepts")
-                                    .select("*")
-                                    .eq("code", code)
-                                    .single();
-                                if (error) {
-                                    console.error(`Catalog query error for ${code}:`, error);
-                                    return `Concept ${code} not found in catalog.`;
+                            }
+                        ],
+                        tools: {
+                            query_catalog: {
+                                description: 'Search the official catalog for unit prices and contract volumes using a concept code (e.g., "5.2.4.1").',
+                                parameters: z.object({
+                                    code: z.string().describe('The concept code to search for.')
+                                }),
+                                execute: async ({ code }: { code: string }) => {
+                                    console.log(`Searching catalog for concept: ${code}`);
+                                    const { data, error } = await supabase
+                                        .from("catalog_concepts")
+                                        .select("*")
+                                        .eq("code", code)
+                                        .single();
+                                    if (error) {
+                                        console.error(`Catalog query error for ${code}:`, error);
+                                        return `Concept ${code} not found in catalog.`;
+                                    }
+                                    return JSON.stringify(data);
                                 }
-                                return JSON.stringify(data);
+                            },
+                            batch_query_catalog: {
+                                description: 'Search multiple concept codes in the catalog at once.',
+                                parameters: z.object({
+                                    codes: z.array(z.string()).describe('The concept codes to search for.')
+                                }),
+                                execute: async ({ codes }: { codes: string[] }) => {
+                                    console.log(`Searching catalog for batch: ${codes.join(", ")}`);
+                                    const { data, error } = await supabase
+                                        .from("catalog_concepts")
+                                        .select("*")
+                                        .in("code", codes);
+                                    if (error) {
+                                        console.error(`Batch catalog query error:`, error);
+                                        return `Error querying batch: ${error.message}`;
+                                    }
+                                    return JSON.stringify(data);
+                                }
+                            },
+                            math_evaluate: {
+                                description: 'Safely evaluate a mathematical expression. Use for ALL calculations.',
+                                parameters: z.object({
+                                    expression: z.string().describe('Math expression (e.g., "24.5 * 10 * 1.16")'),
+                                    context: z.string().optional().describe('Brief context for logging')
+                                }),
+                                execute: async ({ expression, context }: { expression: string; context?: string }) => {
+                                    try {
+                                        // Basic sanitation
+                                        const sanitized = expression.replace(/=/g, '');
+                                        const result = evaluate(sanitized);
+                                        console.log(`[Gemini Math] ${context || 'Calc'}: ${expression} = ${result}`);
+                                        return JSON.stringify({
+                                            expression,
+                                            result,
+                                            formatted: typeof result === 'number'
+                                                ? new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(result)
+                                                : result.toString()
+                                        });
+                                    } catch (e: any) {
+                                        return JSON.stringify({ error: `Math error: ${e.message}` });
+                                    }
+                                }
                             }
                         },
-                        batch_query_catalog: {
-                            description: 'Search multiple concept codes in the catalog at once.',
-                            parameters: z.object({
-                                codes: z.array(z.string()).describe('The concept codes to search for.')
-                            }),
-                            execute: async ({ codes }: { codes: string[] }) => {
-                                console.log(`Searching catalog for batch: ${codes.join(", ")}`);
-                                const { data, error } = await supabase
-                                    .from("catalog_concepts")
-                                    .select("*")
-                                    .in("code", codes);
-                                if (error) {
-                                    console.error(`Batch catalog query error:`, error);
-                                    return `Error querying batch: ${error.message}`;
-                                }
-                                return JSON.stringify(data);
-                            }
-                        },
-                        math_evaluate: {
-                            description: 'Safely evaluate a mathematical expression. Use for ALL calculations.',
-                            parameters: z.object({
-                                expression: z.string().describe('Math expression (e.g., "24.5 * 10 * 1.16")'),
-                                context: z.string().optional().describe('Brief context for logging')
-                            }),
-                            execute: async ({ expression, context }: { expression: string; context?: string }) => {
-                                try {
-                                    // Basic sanitation
-                                    const sanitized = expression.replace(/=/g, ''); 
-                                    const result = evaluate(sanitized);
-                                    console.log(`[Gemini Math] ${context || 'Calc'}: ${expression} = ${result}`);
-                                    return JSON.stringify({
-                                        expression,
-                                        result,
-                                        formatted: typeof result === 'number' 
-                                            ? new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(result)
-                                            : result.toString()
-                                    });
-                                } catch (e: any) {
-                                    return JSON.stringify({ error: `Math error: ${e.message}` });
-                                }
-                            }
-                        }
-                    },
-                    maxSteps: 5,
-                } as any);
+                        maxSteps: 5,
+                    } as any);
+                    return response;
+                });
             });
-        });
 
-        console.log("Audit result generated successfully.");
-        res.json({
-            analysis: result.text,
-            highlightCoordinates: (result.text.match(/[A-Z]\d+/g) || [])
-        });
-    } catch (error: any) {
-        console.error("DETAILED AUDIT ERROR:", error);
-        // Log the full error object for better debugging
-        if (error.response) {
-            console.error("Error Response Data:", error.response.data);
+            // Log LLM completion
+            llmLogger.logRequestComplete(requestId, {
+                totalTokens: (result as any).usage?.totalTokens,
+                promptTokens: (result as any).usage?.promptTokens,
+                completionTokens: (result as any).usage?.completionTokens,
+            });
+
+            console.log("Audit result generated successfully.");
+            res.json({
+                analysis: result.text,
+                highlightCoordinates: (result.text.match(/[A-Z]\d+/g) || [])
+            });
+        } catch (error: any) {
+            console.error("DETAILED AUDIT ERROR:", error);
+            // Log the full error object for better debugging
+            if (error.response) {
+                console.error("Error Response Data:", error.response.data);
+            }
+            const isProduction = process.env.NODE_ENV === "production";
+            res.status(500).json({
+                error: isProduction ? "Audit failed" : error.message,
+                ...(isProduction ? {} : { details: error.toString() })
+            });
         }
-        res.status(500).json({ error: error.message, details: error.toString() });
-    }
-});
+    });
 
-// Mount workflow routes
+// Mount routes
 app.use('/workflow', workflowRoutes);
+app.use('/auth', authRoutes);
+
+// Error sanitizer (must be last middleware)
+app.use(sanitizeErrors);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
