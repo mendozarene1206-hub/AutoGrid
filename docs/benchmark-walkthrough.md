@@ -169,6 +169,10 @@ node generate-stress-test.mjs wbs      # Construction WBS
 
 > [!NOTE]
 > The ratio is expected since your parser runs client-side in a Web Worker vs. Univer Pro's optimized server-side processing. A ratio under 30x is acceptable for client-side.
+### 4. Zero-Crash Ingestion
+For large files (up to 150MB), AutoGrid uses a **Streaming Strategy**:
+1. **Direct Upload**: Files go straight to R2 via presigned URLs, bypassing frontend RAM constraints.
+2. **Chunked Processing**: The backend streams rows in batches instead of loading the whole file at once.
 
 ---
 
