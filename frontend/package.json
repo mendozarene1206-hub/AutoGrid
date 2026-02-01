@@ -15,6 +15,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "@types/pako": "^2.0.4",
+    "@univerjs-pro/license": "^0.15.4",
     "@univerjs/presets": "^0.15.1",
     "@univerjs/sheets-conditional-formatting": "^0.15.1",
     "@univerjs/sheets-crosshair-highlight": "^0.15.1",

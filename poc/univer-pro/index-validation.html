@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Univer Pro - AutoGrid Validation POC</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+    }
+    .header {
+      background: #1a1a2e;
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .test-controls {
+      display: flex;
+      gap: 1rem;
+    }
+    .btn {
+      background: #4f46e5;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #4338ca;
+    }
+    .btn:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .main-container {
+      display: flex;
+      height: calc(100vh - 64px);
+    }
+    .grid-container {
+      flex: 1;
+      padding: 1rem;
+    }
+    #univer {
+      width: 100%;
+      height: 100%;
+      background: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .sidebar {
+      width: 350px;
+      background: white;
+      border-left: 1px solid #e5e7eb;
+      padding: 1rem;
+      overflow-y: auto;
+    }
+    .test-section {
+      margin-bottom: 1.5rem;
+    }
+    .test-section h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .file-input {
+      display: none;
+    }
+    .file-label {
+      display: block;
+      padding: 1rem;
+      border: 2px dashed #d1d5db;
+      border-radius: 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .file-label:hover {
+      border-color: #4f46e5;
+    }
+    .result-box {
+      background: #f3f4f6;
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      font-family: monospace;
+      margin-top: 0.5rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .result-box.success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .result-box.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .metric:last-child {
+      border-bottom: none;
+    }
+    .metric-label {
+      color: #6b7280;
+    }
+    .metric-value {
+      font-weight: 600;
+      color: #111827;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Univer Pro Validation POC - AutoGrid v7.0</h1>
+    <div class="test-controls">
+      <input type="file" id="excelFile" class="file-input" accept=".xlsx" />
+      <button class="btn" onclick="document.getElementById('excelFile').click()">
+        Import Excel
+      </button>
+      <button class="btn" id="testSelectionBtn">Test Selection</button>
+      <button class="btn" id="testPerformanceBtn">Benchmark</button>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="grid-container">
+      <div id="univer"></div>
+    </div>
+
+    <div class="sidebar">
+      <!-- Excel Import Results -->
+      <div class="test-section">
+        <h3>Excel Import Test</h3>
+        <div id="importResults" class="result-box hidden"></div>
+      </div>
+
+      <!-- Selection Events Test -->
+      <div class="test-section">
+        <h3>Selection Events</h3>
+        <div id="selectionResults" class="result-box hidden"></div>
+        <button class="btn" id="clearSelectionBtn" style="margin-top: 0.5rem; width: 100%;">
+          Clear Log
+        </button>
+      </div>
+
+      <!-- Performance Metrics -->
+      <div class="test-section">
+        <h3>Performance Benchmark</h3>
+        <div id="performanceResults" class="hidden">
+          <div class="metric">
+            <span class="metric-label">Load Time</span>
+            <span class="metric-value" id="loadTime">-</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Render Time</span>
+            <span class="metric-value" id="renderTime">-</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Memory Usage</span>
+            <span class="metric-value" id="memoryUsage">-</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Row Count</span>
+            <span class="metric-value" id="rowCount">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom Renderers Test -->
+      <div class="test-section">
+        <h3>Custom Renderers</h3>
+        <button class="btn" id="testStatusBtn" style="width: 100%;">
+          Apply Status Formatting
+        </button>
+        <div id="rendererResults" class="result-box hidden" style="margin-top: 0.5rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main-validation.ts"></script>
+</body>
+</html>

@@ -46,6 +46,9 @@ import { UniverSheetsDrawingUIPlugin } from '@univerjs/sheets-drawing-ui';
 import { UniverSheetsCrosshairHighlightPlugin } from '@univerjs/sheets-crosshair-highlight';
 import { UniverSheetsZenEditorPlugin } from '@univerjs/sheets-zen-editor';
 
+// License Plugin
+import { UniverLicensePlugin } from '@univerjs-pro/license';
+
 // Tipos de Univer
 import type { IWorkbookData, Univer } from '@univerjs/core';
 
@@ -116,6 +119,12 @@ export const UniverGrid: React.FC<UniverGridProps> = ({
                         }),
                     ],
                 });
+
+                // Registrar Licencia inmediatamente después de crear la instancia
+                univer.registerPlugin(UniverLicensePlugin, {
+                    license: '1947908155879981279-1-eyJpIjoiMTk0NzkwODE1NTg3OTk4MTI3OSIsInYiOiIxIiwicCI6IlRGWkp3aVljcDV5MEp5eWd6ZmhHTWN5NU9VZnFVTWM4djRQZy9ydHBXZDg9IiwicnQiOjMsImZ0Ijp7InVmIjp7Im11IjoyMTQ3NDgzNjQ2LCJldCI6MTc3MjEzMjY3MSwibW0iOjIxNDc0ODM2NDYsImN1IjoyMTQ3NDgzNjQ2fSwic2YiOnsiZXQiOjE3NzIxMzI2NzEsInB0biI6MjE0NzQ4MzY0NiwibWlzIjoyMTQ3NDgzNjQ2LCJtcG4iOjIxNDc0ODM2NDYsIm5jIjoyMTQ3NDgzNjQ2LCJpZWMiOjIxNDc0ODM2NDZ9LCJkZiI6eyJldCI6MTc3MjEzMjY3MSwicnYiOnRydWUsIm1pcyI6MjE0NzQ4MzY0NiwibXBuIjoyMTQ3NDgzNjQ2LCJpZWMiOjIxNDc0ODM2NDZ9LCJ3c2YiOnsiZXQiOjE3NzIxMzI2NzEsImhnIjoyMTQ3NDgzNjQ2fX0sInVkIjo0ODkzNjc4MjcxLCJhdCI6MTc2OTU0MDY3MSwiZSI6Im1lbmRvemFyZW5lMTIwNkBnbWFpbC5jb20iLCJkIjo4LCJuIjoxNTMsInVzIjoyMTQ3NDgzNjQ2fQ==-Ebp9j4YnqmyvvAsW8jtHzUIv5KaNQZeZDZHZ7FbaUdpSfI7HfNqj/UK7ODMX1IKF8ONMQLrjRO5xOP3u+oFgBA==-4893678271'
+                });
+
 
                 // Helper para registrar plugins de forma segura
                 const register = (Plugin: any, name: string) => {
