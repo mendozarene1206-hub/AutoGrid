@@ -128,6 +128,8 @@ _Add entries here with date and fix_
 
 | Date | Mistake | Fix Applied |
 |------|---------|-------------|
+| 2026-02-03 | Salté Plan Mode e implementé directamente con Agent Swarm | Creé plan de corrección detallado y ejecuté 3 fases: Critical Fixes → Testing → Polish |
+| 2026-02-03 | No verifiqué AG Grid instalado antes de implementar | Verifiqué package.json y node_modules antes de continuar |
 | 2026-01-31 | - | - |
 
 ---
@@ -267,4 +269,31 @@ _Add entries here with date and fix_
 
 ---
 
-*Last updated: 2026-01-31*
+*Last updated: 2026-02-03*
+
+---
+
+## 📚 Trojan Architecture - Estado Actual
+
+**Fases Completadas**: 5/5 ✅
+- ✅ Fase 1: Foundation (Worker + DB)
+- ✅ Fase 2: API Endpoints
+- ✅ Fase 3: Frontend Shell
+- ✅ Fase 4: Vista Univer Grid
+- ✅ Fase 5: Vista Tree + Assets
+
+**Documentación**:
+- `docs/TROJAN-ARCHITECTURE.md` - Documentación técnica completa
+- `docs/TROJAN-SETUP-GUIDE.md` - Guía de configuración
+- `docs/AUDIT-trojan-fases-4-5.md` - Auditoría post-implementación
+- `docs/CORRECTION-SUMMARY.md` - Resumen de correcciones
+
+**Componentes Principales**:
+- `TrojanUniverGrid.tsx` - Grid con edición optimista
+- `TrojanTreeView.tsx` - Árbol WBS con AG Grid
+- `TrojanAssetPanel.tsx` - Panel de fotos/generadores
+
+**Hooks con Retry**:
+- `useUniverData.ts` - Datos para Grid
+- `useTreeData.ts` - Datos para Tree
+- `useAssets.ts` - Assets por concepto

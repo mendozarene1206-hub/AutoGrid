@@ -1,0 +1,231 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    TROJAN ARCHITECTURE - FASE 6                              ║
+║              Production-Ready & Persistencia Completa                        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         ESTADO ACTUAL (Post Fase 5)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────┐    Edición    ┌──────────────┐                            │
+│  │   Usuario    │ ────optimista──▶│   Grid       │                            │
+│  │   Edita celda│    (UI only)   │   Univer     │                            │
+│  └──────────────┘                 └──────┬───────┘                            │
+│                                          │                                   │
+│                                          ▼ No persiste!                       │
+│                                    ┌──────────────┐                         │
+│                                    │   Memory     │                         │
+│                                    │   (volátil)  │                         │
+│                                    └──────────────┘                         │
+│                                                                              │
+│  ❌ PROBLEMA: Edición se pierde al recargar                                 │
+│  ❌ PROBLEMA: Solo funciona localmente                                       │
+│  ❌ PROBLEMA: Sin tests de integración                                       │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                                    ⬇ FASE 6
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ESTADO OBJETIVO (Fase 6 Completa)                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    INFRAESTRUCTURA CLOUD                             │   │
+│  │                                                                      │   │
+│  │   ┌──────────────┐      ┌──────────────┐      ┌──────────────┐     │   │
+│  │   │   Vercel     │      │   Railway    │      │   Upstash    │     │   │
+│  │   │   Frontend   │◀────▶│   Server     │◀────▶│   Redis      │     │   │
+│  │   │   $0/mes     │      │   $10/mes    │      │   $0/mes     │     │   │
+│  │   └──────────────┘      └──────┬───────┘      └──────────────┘     │   │
+│  │                                │                                    │   │
+│  │                          ┌─────┴──────┐                            │   │
+│  │                          │  Railway   │                            │   │
+│  │                          │  Worker    │                            │   │
+│  │                          │  $5/mes    │                            │   │
+│  │                          └─────┬──────┘                            │   │
+│  │                                │                                    │   │
+│  │                          ┌─────┴──────┐                            │   │
+│  │                          │    R2      │                            │   │
+│  │                          │  Storage   │                            │   │
+│  │                          │  $0.015/GB │                            │   │
+│  │                          └────────────┘                            │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    FLUJO DE EDICIÓN PERSISTENTE                      │   │
+│  │                                                                      │   │
+│  │   Usuario                                                          │   │
+│  │      │                                                             │   │
+│  │      ▼ Edit "Cantidad: 12 → 15"                                    │   │
+│  │   ┌──────────────┐                                                 │   │
+│  │   │ 1. Optimistic│                                                 │   │
+│  │   │    Update UI │──▶ Muestra "15" inmediatamente                  │   │
+│  │   │    (10ms)    │                                                 │   │
+│  │   └──────┬───────┘                                                 │   │
+│  │          │                                                         │   │
+│  │          ▼ POST /api/estimations/:id/cells                         │   │
+│  │   ┌──────────────┐                                                 │   │
+│  │   │ 2. Server    │                                                 │   │
+│  │   │    Validates │──▶ Auth, Type, Not SIGNED                       │   │
+│  │   │    (50ms)    │                                                 │   │
+│  │   └──────┬───────┘                                                 │   │
+│  │          │                                                         │   │
+│  │          ▼ INSERT cell_edits                                       │   │
+│  │   ┌──────────────┐                                                 │   │
+│  │   │ 3. Database  │──▶ rowIndex, column, prev, new, user, timestamp │   │
+│  │   │    (20ms)    │                                                 │   │
+│  │   └──────┬───────┘                                                 │   │
+│  │          │                                                         │   │
+│  │          ▼ Response 200 OK                                         │   │
+│  │   ┌──────────────┐                                                 │   │
+│  │   │ 4. Success   │──▶ Toast "Guardado ✓"                           │   │
+│  │   │    (5ms)     │                                                 │   │
+│  │   └──────────────┘                                                 │   │
+│  │                                                                      │   │
+│  │   ┌─────────────────────────────────────────────────────────────┐  │   │
+│  │   │  CONFLICT HANDLING (Optimistic Locking)                      │  │   │
+│  │   │                                                              │  │   │
+│  │   │  Si otro usuario editó mismo cell:                          │  │   │
+│  │   │  1. Server detecta version mismatch                          │  │   │
+│  │   │  2. Response 409 Conflict                                     │  │   │
+│  │   │  3. Frontend muestra: "Celda actualizada por otro usuario"   │  │   │
+│  │   │  4. Opciones: "Sobrescribir" o "Descartar cambios"           │  │   │
+│  │   └─────────────────────────────────────────────────────────────┘  │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    TESTING PYRAMID (Fase 6)                          │   │
+│  │                                                                      │   │
+│  │                        ┌─────────┐                                   │   │
+│  │                        │  E2E    │  5 tests críticos                 │   │
+│  │                        │(10%)    │  • Upload → Grid → Tree → Assets  │   │
+│  │                        └────┬────┘  • Edición + persistencia        │   │
+│  │                             │       • Cambio proyecto               │   │
+│  │                        ┌────┴────┐                                   │   │
+│  │                        │Integration│  8 tests                       │   │
+│  │                        │  (20%)   │  • Hooks con retry              │   │
+│  │                        └────┬────┘  • API endpoints                 │   │
+│  │                             │       • Component composition         │   │
+│  │                        ┌────┴────┐                                   │   │
+│  │                        │  Unit    │  20+ tests                      │   │
+│  │                        │  (70%)   │  • useUniverData                │   │
+│  │                        └─────────┘  • useTreeData                   │   │
+│  │                                      • validation.ts               │   │
+│  │                                                                      │   │
+│  │  Coverage Target: 70% líneas críticas                               │   │
+│  │  Tools: Vitest + React Testing Library + Playwright                 │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    CI/CD PIPELINE (GitHub Actions)                   │   │
+│  │                                                                      │   │
+│  │   Push/PR                                                            │   │
+│  │      │                                                               │   │
+│  │      ▼                                                               │   │
+│  │   ┌──────────────┐                                                   │   │
+│  │   │ 1. Lint +    │──▶ ESLint + Prettier                             │   │
+│  │   │    Type Check│──▶ TypeScript --noEmit                            │   │
+│  │   └──────┬───────┘                                                   │   │
+│  │          │                                                           │   │
+│  │          ▼ Pass?                                                     │   │
+│  │   ┌──────────────┐                                                   │   │
+│  │   │ 2. Test      │──▶ Vitest unit tests                              │   │
+│  │   │              │──▶ Coverage report                                 │   │
+│  │   └──────┬───────┘                                                   │   │
+│  │          │                                                           │   │
+│  │          ▼ Pass?                                                     │   │
+│  │   ┌──────────────┐                                                   │   │
+│  │   │ 3. Build     │──▶ Vite build                                     │   │
+│  │   │              │──▶ Check bundle size                              │   │
+│  │   └──────┬───────┘                                                   │   │
+│  │          │                                                           │   │
+│  │          ▼ Pass? + es main branch                                    │   │
+│  │   ┌──────────────┐                                                   │   │
+│  │   │ 4. Deploy    │──▶ Railway (server + worker)                      │   │
+│  │   │              │──▶ Vercel (frontend)                              │   │
+│  │   └──────┬───────┘                                                   │   │
+│  │          │                                                           │   │
+│  │          ▼                                                           │   │
+│  │   ┌──────────────┐                                                   │   │
+│  │   │ 5. E2E Tests │──▶ Playwright vs producción                       │   │
+│  │   │   (smoke)    │──▶ Si fallan → rollback                           │   │
+│  │   └──────────────┘                                                   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    MONITORING & OBSERVABILITY                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │    Sentry       │  │   Console Logs  │  │   Health Check  │             │
+│  │                 │  │                 │  │                 │             │
+│  │ • Error tracking│  │ • Structured    │  │ • GET /health   │             │
+│  │ • Performance   │  │   [Component]   │  │ • DB connection │             │
+│  │ • User sessions │  │ • Timing metrics│  │ • R2 access     │             │
+│  │ • Alerts (Slack)│  │ • Retry attempts│  │ • Redis queue   │             │
+│  │                 │  │                 │  │                 │             │
+│  │ Cost: $0/mes    │  │ Free            │  │ Free            │             │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                         CHECKLIST FASE 6 COMPLETA                           ║
+╠══════════════════════════════════════════════════════════════════════════════╣
+║                                                                              ║
+║  PERSISTENCIA                                                                ║
+║  [ ] POST /api/estimations/:id/cells implementado                           ║
+║  [ ] Tabla cell_edits creada con RLS                                        ║
+║  [ ] Optimistic locking funcionando                                         ║
+║  [ ] Conflict resolution UI                                                 ║
+║  [ ] Toast notifications (éxito/error)                                      ║
+║                                                                              ║
+║  INFRAESTRUCTURA                                                             ║
+║  [ ] Upstash Redis configurado                                              ║
+║  [ ] Server API deployado en Railway                                        ║
+║  [ ] Worker deployado en Railway                                            ║
+║  [ ] Frontend deployado en Vercel                                           ║
+║  [ ] Variables de entorno configuradas                                      ║
+║  [ ] CORS whitelist configurado                                             ║
+║  [ ] Health check endpoints funcionando                                     ║
+║                                                                              ║
+║  TESTING                                                                     ║
+║  [ ] 5 tests E2E con Playwright                                             ║
+║  [ ] 8 tests de integración                                                 ║
+║  [ ] 20+ tests unitarios                                                    ║
+║  [ ] 70% coverage mínimo                                                    ║
+║  [ ] CI/CD pipeline en GitHub Actions                                       ║
+║                                                                              ║
+║  MONITORING                                                                  ║
+║  [ ] Sentry configurado                                                     ║
+║  [ ] Error tracking activo                                                  ║
+║  [ ] Performance monitoring                                                 ║
+║  [ ] Alertas configuradas                                                   ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         DECISIONES ARQUITECTÓNICAS                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ¿Por qué Railway para Server/Worker?                                       │
+│  ✅ Deploy automático desde GitHub                                          │
+│  ✅ Variables de entorno seguras                                            │
+│  ✅ Logs centralizados                                                      │
+│  ✅ Escalado horizontal fácil                                               │
+│                                                                              │
+│  ¿Por qué Upstash para Redis?                                               │
+│  ✅ Serverless (no manejar servidor)                                        │
+│  ✅ Free tier generoso (10k comandos/día)                                   │
+│  ✅ Baja latencia (<5ms)                                                    │
+│                                                                              │
+│  ¿Por qué Vercel para Frontend?                                             │
+│  ✅ Deploy automático                                                       │
+│  ✅ Preview deployments por PR                                              │
+│  ✅ Analytics incluido                                                      │
+│  ✅ Edge network global                                                     │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘

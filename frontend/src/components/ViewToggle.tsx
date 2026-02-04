@@ -7,7 +7,7 @@
 
 import React from 'react';
 
-export type ViewMode = 'GRID' | 'SPLIT' | 'KANBAN';
+export type ViewMode = 'GRID' | 'SPLIT' | 'TREE' | 'KANBAN';
 
 interface ViewToggleProps {
     currentView: ViewMode;
@@ -18,6 +18,7 @@ export const ViewToggle: React.FC<ViewToggleProps> = ({ currentView, onViewChang
     const views: { mode: ViewMode; icon: string; label: string }[] = [
         { mode: 'GRID', icon: '▦', label: 'Grid View' },
         { mode: 'SPLIT', icon: '◫', label: 'Split View' },
+        { mode: 'TREE', icon: '🌲', label: 'Tree View' },
         { mode: 'KANBAN', icon: '☰', label: 'Kanban' },
     ];
 

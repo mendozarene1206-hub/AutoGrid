@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+// Legacy grid components kept for SPLIT view compatibility
+// @ts-expect-error - Used by SplitViewContainer via workbookData
 import { UniverGrid } from './components/UniverGrid';
+// @ts-expect-error - Kept for future manifest-based loading
 import { ChunkedUniverGrid } from './components/ChunkedUniverGrid';
+import { TrojanUniverGrid } from './components/TrojanUniverGrid';
+import { TrojanTreeView } from './components/TrojanTreeView';
+import { TrojanAssetPanel } from './components/TrojanAssetPanel';
 import { Dashboard } from './components/Dashboard';
 import type { IWorkbookData } from '@univerjs/core';
 import { AdminDashboard } from './components/AdminDashboard';
 import { UploadProgress } from './components/UploadProgress';
+// @ts-expect-error - Persistence service for legacy data
 import { saveSnapshot, loadSnapshot } from './services/UniverPersistenceService';
 import { getPresignedUrl, uploadToR2, notifyUploadComplete, waitForJobCompletion } from './utils/r2Client';
 // New Design System Components
@@ -62,6 +69,8 @@ function App() {
   const [uploadProgress, setUploadProgress] = useState({ phase: '', percent: 0, visible: false });
   const [viewMode, setViewMode] = useState<ViewMode>('GRID');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedConceptCode, setSelectedConceptCode] = useState<string | null>(null);
+  const [isAssetPanelOpen, setIsAssetPanelOpen] = useState(false);
   const [cellSelection, setCellSelection] = useState<{
     startRow: number;
     endRow: number;
@@ -251,6 +260,9 @@ function App() {
   const openProject = async (id: string) => {
     setLoading(true);
     setSpreadsheetId(id);
+    // Reset Trojan-related state when switching projects
+    setSelectedConceptCode(null);
+    setIsAssetPanelOpen(false);
     setUploadProgress({ phase: '📂 Cargando proyecto...', percent: 10, visible: true });
 
     try {
@@ -305,6 +317,20 @@ function App() {
 
   // Note: isAuditOpen removed, replaced by isSidebarOpen for SelectionSidebar
 
+  // Handle view mode changes with logging
+  const handleViewModeChange = (newMode: ViewMode) => {
+    console.log(`[App] Switching to ${newMode} mode`);
+    const startTime = performance.now();
+    
+    setViewMode(newMode);
+    
+    // Log completion after state update
+    requestAnimationFrame(() => {
+      const endTime = performance.now();
+      console.log(`[App] ${newMode} mode rendered in ${(endTime - startTime).toFixed(2)}ms`);
+    });
+  };
+
   return (
     <div className="app-container">
       {/* Global Header - Always visible when in editor */}
@@ -323,7 +349,7 @@ function App() {
         {spreadsheetId && (
           <IconNav
             currentView={viewMode}
-            onViewChange={setViewMode}
+            onViewChange={handleViewModeChange}
           />
         )}
 
@@ -371,7 +397,7 @@ function App() {
 
                     {/* View Toggle - GRID | SPLIT | KANBAN */}
                     <div className="view-tabs-bar">
-                      <ViewToggle currentView={viewMode} onViewChange={setViewMode} />
+                      <ViewToggle currentView={viewMode} onViewChange={handleViewModeChange} />
 
                       <div className="view-actions" style={{ marginLeft: 'auto', display: 'flex', gap: '12px', alignItems: 'center' }}>
                         <button className="text-btn">Group</button>
@@ -403,24 +429,41 @@ function App() {
                       <ErrorBoundary>
                         {/* GRID VIEW */}
                         {viewMode === 'GRID' && (
-                          <>
-                            {manifestPath ? (
-                              <ChunkedUniverGrid
-                                key={`chunked-${spreadsheetId}-${manifestPath}`}
-                                manifestPath={manifestPath}
-                                readOnly={status !== 'draft'}
-                              />
-                            ) : (
-                              <UniverGrid
-                                key={`univer-${spreadsheetId}-${data?.id || 'empty'}`}
-                                data={data}
-                                readOnly={status !== 'draft'}
-                                onChange={() => {
-                                  console.log('[AutoGrid] Data changed');
+                          <TrojanUniverGrid
+                            key={`trojan-grid-${spreadsheetId}`}
+                            estimationId={spreadsheetId}
+                            readOnly={status !== 'draft'}
+                            onCellEdit={(row, col, value) => {
+                              console.log('[App] Cell edited:', { row, col, value });
+                              // TODO: Persistir cambio via API
+                            }}
+                          />
+                        )}
+
+                        {/* TREE VIEW */}
+                        {viewMode === 'TREE' && (
+                          <div style={{ display: 'flex', height: '100%' }}>
+                            <div style={{ flex: 1 }}>
+                              <TrojanTreeView
+                                estimationId={spreadsheetId}
+                                onConceptSelect={(code, node) => {
+                                  console.log(`[App] Concept selected: ${code}`, node);
+                                  setSelectedConceptCode(code);
+                                  setIsAssetPanelOpen(true);
                                 }}
+                                selectedConceptCode={selectedConceptCode}
                               />
-                            )}
-                          </>
+                            </div>
+                            <TrojanAssetPanel
+                              estimationId={spreadsheetId}
+                              conceptCode={selectedConceptCode}
+                              isOpen={isAssetPanelOpen}
+                              onClose={() => setIsAssetPanelOpen(false)}
+                              onAssetClick={(asset) => {
+                                console.log('[App] Asset clicked:', asset);
+                              }}
+                            />
+                          </div>
                         )}
 
                         {/* SPLIT VIEW */}
